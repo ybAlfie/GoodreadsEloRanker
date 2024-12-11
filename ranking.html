@@ -148,7 +148,7 @@
     <div class="matchup-container">
         <div id="book1_container" class="book-container" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">
             <div class="image-wrapper">
-                <img id="book1_img" alt="Book 1 Cover">
+                <img id="book1_img" alt="Book 1 Cover" onerror="this.src='images/placeholder.png'" onload="if (this.naturalWidth <= 1 && this.naturalHeight <= 1) this.src='images/placeholder.png';">
             </div>
             <div class="title-stats-container">
                 <h3 id="book1_title"></h3>
@@ -164,7 +164,7 @@
 
         <div id="book2_container" class="book-container" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">
             <div class="image-wrapper">
-                <img id="book2_img" alt="Book 2 Cover">
+                <img id="book2_img" alt="Book 2 Cover" onerror="this.src='images/placeholder.png'" onload="if (this.naturalWidth <= 1 && this.naturalHeight <= 1) this.src='images/placeholder.png';">
             </div>
             <div class="title-stats-container">
                 <h3 id="book2_title"></h3>

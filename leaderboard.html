@@ -61,8 +61,14 @@
                 // Cover
                 const coverCell = document.createElement('td');
                 const img = document.createElement('img');
+                img.setAttribute('onerror', "this.src='images/placeholder.png';");
                 img.src = book.cover_url || 'images/placeholder.png';
                 img.alt = `${book.title} Cover`;
+                img.onload = function() {
+                    if (this.naturalWidth <= 1 && this.naturalHeight <= 1) {
+                        this.src = 'images/placeholder.png';
+                    }
+                };
                 coverCell.appendChild(img);
                 row.appendChild(coverCell);
 
