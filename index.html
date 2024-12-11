@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Goodreads ELO Ranker - Upload</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- PapaParse from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="js/elo.js"></script>
+    <script src="js/app.js" defer></script>
+</head>
+<body>
+    <nav style="text-align:center;">
+        <a href="index.html">Upload</a> |
+        <a href="ranking.html">Rank Books</a> |
+        <a href="leaderboard.html">Leaderboard</a> |
+        <a href="about.html">About</a>
+    </nav>
+    <h1>Goodreads ELO Ranker &#128218;</h1>
+    <h3 style="text-align:center; color:#664b33"><i>Pair books in one-on-one matchups and discover which titles rise to the top of your want to read pile.</i></h3>
+    <form id="upload-form">
+        <p><strong>Goodreads Library Export:</strong></p>
+        <input type="file" id="goodreads-file" accept=".csv">
+        <p><strong>Previous Rankings CSV:</strong></p>
+        <input type="file" id="rankings-file" accept=".csv">
+        <br><br>
+        <button type="submit">Upload &/or Merge</button>
+    </form>
+
+    <p style="margin-top:20px;">Upload your Goodreads Library Export to get started or a Previous Rankings CSV to contiune where you left off. <br> If you've made changes to your Goodreads library, you can upload both files to merge changes.</p>
+
+    <div class="instructions">
+        <a href="about.html">Click here to check the about page and read the how to guide.</a>
+    </div>
+
+    <script>
+        document.getElementById('upload-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const goodreadsFile = document.getElementById('goodreads-file').files[0];
+            const rankingsFile = document.getElementById('rankings-file').files[0];
+
+            if (!goodreadsFile && !rankingsFile) {
+                alert("Please select at least one file to upload.");
+                return;
+            }
+
+            let loadedBooks = JSON.parse(localStorage.getItem('books')) || [];
+
+            // If Goodreads file is provided, parse and merge
+            if (goodreadsFile) {
+                loadedBooks = await parseGoodreadsCSV(goodreadsFile, loadedBooks);
+            }
+
+            // If Rankings file is provided, parse and merge
+            if (rankingsFile) {
+                loadedBooks = await parseRankingsCSV(rankingsFile, loadedBooks);
+            }
+
+            // Save updated books to localStorage
+            localStorage.setItem('books', JSON.stringify(loadedBooks));
+            window.location.href = 'ranking.html';
+        });
+    </script>
+</body>
+</html>

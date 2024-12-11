@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ELO Ranking</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/elo.js"></script>
+    <script src="js/app.js" defer></script>
+    <style>
+        .book-container {
+            display: inline-block;
+            width: 250px;
+            text-align: center;
+            margin: 0 20px;
+            vertical-align: top;
+            cursor: pointer;
+            padding: 10px;
+            box-sizing: border-box;
+            position: relative;
+            overflow-wrap: break-word; 
+        }
+
+        .image-wrapper {
+            width: 100%;
+            height: 300px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .image-wrapper img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
+
+        .title-stats-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; 
+            margin-bottom: 10px;
+        }
+
+        .title-stats-container h3 {
+            margin: 5px 0;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        .title-stats-container small {
+            margin-bottom: 10px;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        .chosen {
+            background-color: #00ff00 !important;
+        }
+
+        .matchup-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            padding: 20px;
+            /* flex-wrap: wrap; /* Allow wrapping if window is narrow */
+        }
+
+        .instructions {
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+    <script>
+        let currentMatchup = null;
+
+        function getNextMatchup() {
+            const matchup = getNextMatchupData();
+            if (!matchup.book1 || !matchup.book2) {
+                document.body.innerHTML = "<h2>Not enough books to compare.</h2>";
+                return;
+            }
+            currentMatchup = matchup;
+
+            const book1Elo = Math.round(matchup.book1.elo);
+            const book2Elo = Math.round(matchup.book2.elo);
+
+            document.getElementById('book1_img').src = matchup.book1.cover_url || 'images/placeholder.png';
+            document.getElementById('book1_title').innerText = matchup.book1.title;
+            document.getElementById('book1_stats').innerText = `ELO: ${book1Elo} | Matchups: ${matchup.book1.matchups}`;
+
+            document.getElementById('book2_img').src = matchup.book2.cover_url || 'images/placeholder.png';
+            document.getElementById('book2_title').innerText = matchup.book2.title;
+            document.getElementById('book2_stats').innerText = `ELO: ${book2Elo} | Matchups: ${matchup.book2.matchups}`;
+        }
+
+        async function chooseWinner(winnerId, loserId) {
+            let chosenContainer = null;
+            if (winnerId === currentMatchup.book1.id) {
+                chosenContainer = document.getElementById('book1_container');
+            } else {
+                chosenContainer = document.getElementById('book2_container');
+            }
+
+            chosenContainer.classList.add('chosen');
+
+            const [newWinnerElo, newLoserElo] = rate1vs1(
+                (winnerId === currentMatchup.book1.id) ? currentMatchup.book1.elo : currentMatchup.book2.elo,
+                (loserId === currentMatchup.book2.id) ? currentMatchup.book2.elo : currentMatchup.book1.elo
+            );
+
+            updateBookElo(winnerId, newWinnerElo);
+            updateBookElo(loserId, newLoserElo);
+
+            setTimeout(() => {
+                chosenContainer.classList.remove('chosen');
+                getNextMatchup();
+            }, 200);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            getNextMatchup();
+
+            // Keyboard controls
+            document.addEventListener('keydown', (e) => {
+                if(!currentMatchup) return;
+                const {book1, book2} = currentMatchup;
+                if(e.key === 'ArrowLeft') {
+                    chooseWinner(book1.id, book2.id);
+                } else if(e.key === 'ArrowRight') {
+                    chooseWinner(book2.id, book1.id);
+                } else if(e.key === 'ArrowDown') {
+                    getNextMatchup();
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+    <nav style="text-align:center;">
+        <a href="index.html">Upload</a> |
+        <a href="ranking.html">Rank Books</a> |
+        <a href="leaderboard.html">Leaderboard</a> |
+        <a href="about.html">About</a>
+    </nav>
+    <h1 style="text-align:center;">Compare Books</h1>
+    <h3 style="text-align:center; color:#664b33"><i>Which book would you prefer to read?</i></h3>
+    <div class="matchup-container">
+        <div id="book1_container" class="book-container" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">
+            <div class="image-wrapper">
+                <img id="book1_img" alt="Book 1 Cover">
+            </div>
+            <div class="title-stats-container">
+                <h3 id="book1_title"></h3>
+                <small id="book1_stats"></small>
+            </div>
+            <p>Press Left Arrow or Click to choose this book</p>
+        </div>
+        
+        <div style="display:inline-block; text-align:center; margin-top: 20px;">
+            <p>Press Down Arrow or <br>Click 'Skip' to skip this matchup</p>
+            <button style="margin-top:20px;" onclick="getNextMatchup()">Skip</button>
+        </div>
+
+        <div id="book2_container" class="book-container" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">
+            <div class="image-wrapper">
+                <img id="book2_img" alt="Book 2 Cover">
+            </div>
+            <div class="title-stats-container">
+                <h3 id="book2_title"></h3>
+                <small id="book2_stats"></small>
+            </div>
+            <p>Press Right Arrow or Click to choose this book</p>
+        </div>
+    </div>
+    <div class="instructions">
+        <a href="leaderboard.html">View Leaderboard</a>
+    </div>
+</body>
+</html>

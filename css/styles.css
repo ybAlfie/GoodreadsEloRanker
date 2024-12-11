@@ -1,0 +1,28 @@
+body {
+    font-family: Georgia, serif;
+    max-width: 1000px;
+    margin: 20px auto;
+    padding: 0 20px;
+    line-height: 1.5;
+    background-color: #f1e9d6;
+}
+
+h1, h2 {
+    text-align: center;
+    color: #4e3927;
+}
+
+button {
+    cursor: pointer;
+    padding: 5px 10px;
+}
+
+nav {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+nav a {
+    margin: 0 10px;
+    text-decoration: none;
+}
