@@ -9,31 +9,68 @@ function saveBooks() {
 
 // Parse Goodreads CSV
 async function parseGoodreadsCSV(file, existingBooks) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         Papa.parse(file, {
             header: true,
             complete: function(results) {
-                const goodreadsBooks = results.data
-                    .filter(row => row["Bookshelves"] && row["Bookshelves"].toLowerCase().includes("to-read"))
+                const existingBooksMap = new Map(
+                    existingBooks.map(book => [book.isbn, book])
+                );
+
+                const wantToReadBooks = results.data
+                    .filter(row => row["Exclusive Shelf"] === "to-read")
                     .map(row => {
-                        let isbn = row["ISBN13"] || row["ISBN"] || "";
+                        let isbn = row["ISBN13"] || row["ISBN"] || generateUniqueId();
                         isbn = isbn.replace(/"/g, '').trim();
                         if (isbn.startsWith('=')) isbn = isbn.substring(1);
+                        
+                        const existingBook = existingBooksMap.get(isbn);
 
+                        // If book exists, preserve its ELO, matchups, and ID
+                        if (existingBook) {
+                            return {
+                                ...existingBook,
+                                title: row["Title"] || "Unknown Title",
+                                author: row["Author"] || "Unknown Author",
+                                cover_url: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : "",
+                                active: 1
+                            };
+                        }
+
+                        // If it's a new book, create fresh entry with new ID
                         return {
-                            id: Date.now() + Math.random(),
+                            id: Date.now() + Math.random(),  // Add unique ID for new books
+                            isbn: isbn,
                             title: row["Title"] || "Unknown Title",
                             author: row["Author"] || "Unknown Author",
-                            isbn: isbn,
-                            elo: 1200,
+                            cover_url: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : "",
+                            elo: 1500,
                             matchups: 0,
-                            active: 1,
-                            cover_url: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : ""
+                            active: 1
                         };
                     });
 
-                const merged = mergeBooks(goodreadsBooks, existingBooks);
-                resolve(merged);
+                // Mark books not in new import as inactive
+                existingBooks.forEach(book => {
+                    if (!wantToReadBooks.find(b => b.isbn === book.isbn)) {
+                        book.active = 0;
+                    }
+                });
+
+                // Combine new books with existing inactive books
+                const mergedBooks = [
+                    ...wantToReadBooks,
+                    ...existingBooks.filter(book => book.active === 0)
+                ];
+
+                // Update the global books variable
+                books = mergedBooks;
+                saveBooks();  // Save to localStorage
+
+                resolve(mergedBooks);
+            },
+            error: function(error) {
+                reject(error);
             }
         });
     });
@@ -41,67 +78,46 @@ async function parseGoodreadsCSV(file, existingBooks) {
 
 // Parse Rankings CSV
 async function parseRankingsCSV(file, existingBooks) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         Papa.parse(file, {
             header: true,
             complete: function(results) {
-                const rankings = results.data.map(row => {
-                    let isbn = row["ISBN"] || "";
-                    isbn = isbn.replace(/"/g, '').trim();
-                    if (isbn.startsWith('=')) isbn = isbn.substring(1);
+                const existingBooksMap = new Map(
+                    existingBooks.map(book => [book.isbn, book])
+                );
 
-                    return {
-                        id: Date.now() + Math.random(),
-                        isbn: isbn,
-                        title: row["Title"] || "Unknown Title",
-                        author: row["Author"] || "Unknown Author",
-                        elo: parseInt(row["ELO"], 10) || 1200,
-                        matchups: parseInt(row["Matchups"], 10) || 0,
-                        active: parseInt(row["Active"], 10) || 1,
-                        cover_url: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : ""
-                    };
-                });
+                const rankedBooks = results.data
+                    .filter(row => row.ISBN && row.Title)
+                    .map(row => {
+                        const existingBook = existingBooksMap.get(row.ISBN);
+                        
+                        return {
+                            isbn: row.ISBN,
+                            title: row.Title,
+                            author: row.Author,
+                            elo: Number(row.ELO) || 1500,
+                            matchups: Number(row.Matchups) || 0,
+                            active: Number(row.Active) || 1,
+                            cover_url: existingBook?.cover_url || null
+                        };
+                    });
 
-                const merged = mergeRankings(rankings, existingBooks);
-                resolve(merged);
+                // Preserve any existing books not in rankings file
+                const nonRankedBooks = existingBooks.filter(book => 
+                    !rankedBooks.find(rb => rb.isbn === book.isbn)
+                );
+
+                resolve([...rankedBooks, ...nonRankedBooks]);
+            },
+            error: function(error) {
+                reject(error);
             }
         });
     });
 }
 
-// Merge Goodreads books into existing books
-function mergeBooks(goodreadsBooks, existingBooks) {
-    goodreadsBooks.forEach(gb => {
-        const existing = existingBooks.find(b => b.isbn === gb.isbn);
-        if (existing) {
-            // Update if needed
-            existing.title = gb.title;
-            existing.author = gb.author;
-            existing.cover_url = gb.cover_url;
-            existing.active = 1;
-        } else {
-            existingBooks.push(gb);
-        }
-    });
-    return existingBooks;
-}
-
-// Merge Rankings into existing books
-function mergeRankings(rankings, existingBooks) {
-    rankings.forEach(rb => {
-        const existing = existingBooks.find(b => b.isbn === rb.isbn);
-        if (existing) {
-            existing.elo = rb.elo;
-            existing.matchups = rb.matchups;
-            existing.active = rb.active;
-            existing.title = rb.title;
-            existing.author = rb.author;
-            existing.cover_url = rb.cover_url;
-        } else {
-            existingBooks.push(rb);
-        }
-    });
-    return existingBooks;
+function generateUniqueId() {
+    return 'temp_' + Math.random().toString(36).substr(2, 9);
 }
 
 // Update a book's ELO

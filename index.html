@@ -27,6 +27,12 @@
         <button type="submit">Upload &/or Merge</button>
     </form>
 
+    <div style="text-align: center; margin-top: 20px;">
+        <button id="clear-storage" style="background-color: #ff4444; color: white; padding: 8px 16px;">
+            Clear All Data
+        </button>
+    </div>
+
     <p style="margin-top:20px;">Upload your Goodreads Library Export to get started or a Previous Rankings CSV to contiune where you left off. <br> If you've made changes to your Goodreads library, you can upload both files to merge changes.</p>
 
     <div class="instructions">
@@ -34,6 +40,15 @@
     </div>
 
     <script>
+        // Add clear storage functionality
+        document.getElementById('clear-storage').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear all Goodreads ELO Ranker data? This will remove all your rankings and cannot be undone.')) {
+                // Only remove our specific data
+                localStorage.removeItem('books');
+                alert('All Goodreads ELO Ranker data has been cleared. You can now start fresh!');
+            }
+        });
+
         document.getElementById('upload-form').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -45,21 +60,26 @@
                 return;
             }
 
+            // Get existing books from localStorage
             let loadedBooks = JSON.parse(localStorage.getItem('books')) || [];
 
-            // If Goodreads file is provided, parse and merge
-            if (goodreadsFile) {
-                loadedBooks = await parseGoodreadsCSV(goodreadsFile, loadedBooks);
-            }
+            try {
+                // If Goodreads file is provided, parse and merge
+                if (goodreadsFile) {
+                    loadedBooks = await parseGoodreadsCSV(goodreadsFile, loadedBooks);
+                }
 
-            // If Rankings file is provided, parse and merge
-            if (rankingsFile) {
-                loadedBooks = await parseRankingsCSV(rankingsFile, loadedBooks);
-            }
+                // If Rankings file is provided, parse and merge
+                if (rankingsFile) {
+                    loadedBooks = await parseRankingsCSV(rankingsFile, loadedBooks);
+                }
 
-            // Save updated books to localStorage
-            localStorage.setItem('books', JSON.stringify(loadedBooks));
-            window.location.href = 'ranking.html';
+                // Save final merged books to localStorage
+                localStorage.setItem('books', JSON.stringify(loadedBooks));
+                window.location.href = 'ranking.html';
+            } catch (error) {
+                alert("Error processing files: " + error.message);
+            }
         });
     </script>
 </body>

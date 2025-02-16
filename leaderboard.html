@@ -125,6 +125,20 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const books = JSON.parse(localStorage.getItem('books')) || [];
+            const activeBooks = books.filter(b => b.active === 1);
+            
+            if (activeBooks.length === 0) {
+                const mainContent = document.getElementById('main-content');
+                mainContent.innerHTML = `
+                    <h2 style="text-align:center;">No books to display.</h2>
+                    <p style="text-align:center;">
+                        Please <a href="index.html">upload your Goodreads library</a> to get started.
+                    </p>
+                `;
+                return;
+            }
+
             displayLeaderboard();
             document.getElementById('download-btn').addEventListener('click', downloadCSV);
         });
@@ -137,23 +151,26 @@
         <a href="leaderboard.html">Leaderboard</a> |
         <a href="about.html">About</a>
     </nav>
-    <h1 style="text-align:center;">Leaderboard</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Rank</th>
-                <th>Cover</th>
-                <th>Title</th>
-                <th>Author</th>
-                <th>ELO</th>
-                <th>Matchups</th>
-            </tr>
-        </thead>
-        <tbody id="leaderboard-body"></tbody>
-    </table>
-    <a href="#" id="download-btn" class="download-button">Download Rankings CSV</a>
-    <div class="instructions">
-        <a href="ranking.html">Back to Rank Books</a>
+
+    <div id="main-content">
+        <h1 style="text-align:center;">Leaderboard</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Cover</th>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>ELO</th>
+                    <th>Matchups</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboard-body"></tbody>
+        </table>
+        <a href="#" id="download-btn" class="download-button">Download Rankings CSV</a>
+        <div class="instructions">
+            <a href="ranking.html">Back to Rank Books</a>
+        </div>
     </div>
 </body>
 </html>

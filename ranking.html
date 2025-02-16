@@ -77,41 +77,77 @@
         function getNextMatchup() {
             const matchup = getNextMatchupData();
             if (!matchup.book1 || !matchup.book2) {
-                document.body.innerHTML = "<h2>Not enough books to compare.</h2>";
+                const mainContent = document.getElementById('main-content');
+                mainContent.innerHTML = `
+                    <h2 style="text-align:center;">Not enough books to compare.</h2>
+                    <p style="text-align:center;">
+                        Please <a href="index.html">upload your Goodreads library</a> to get started.
+                    </p>
+                `;
                 return;
             }
             currentMatchup = matchup;
 
+            // Clear existing images and set loading state
+            const book1Img = document.getElementById('book1_img');
+            const book2Img = document.getElementById('book2_img');
+            book1Img.src = 'images/placeholder.png';
+            book2Img.src = 'images/placeholder.png';
+            
+            // Update text content
             const book1Elo = Math.round(matchup.book1.elo);
             const book2Elo = Math.round(matchup.book2.elo);
-
-            document.getElementById('book1_img').src = matchup.book1.cover_url || 'images/placeholder.png';
             document.getElementById('book1_title').innerText = matchup.book1.title;
             document.getElementById('book1_stats').innerText = `ELO: ${book1Elo} | Matchups: ${matchup.book1.matchups}`;
-
-            document.getElementById('book2_img').src = matchup.book2.cover_url || 'images/placeholder.png';
             document.getElementById('book2_title').innerText = matchup.book2.title;
             document.getElementById('book2_stats').innerText = `ELO: ${book2Elo} | Matchups: ${matchup.book2.matchups}`;
+
+            // Load new images
+            if (matchup.book1.cover_url) {
+                const img1 = new Image();
+                img1.onload = function() {
+                    if (this.naturalWidth > 1 && this.naturalHeight > 1) {
+                        book1Img.src = matchup.book1.cover_url;
+                    }
+                };
+                img1.src = matchup.book1.cover_url;
+            }
+
+            if (matchup.book2.cover_url) {
+                const img2 = new Image();
+                img2.onload = function() {
+                    if (this.naturalWidth > 1 && this.naturalHeight > 1) {
+                        book2Img.src = matchup.book2.cover_url;
+                    }
+                };
+                img2.src = matchup.book2.cover_url;
+            }
         }
 
         async function chooseWinner(winnerId, loserId) {
-            let chosenContainer = null;
+            let winnerBook, loserBook;
+            
             if (winnerId === currentMatchup.book1.id) {
-                chosenContainer = document.getElementById('book1_container');
+                winnerBook = currentMatchup.book1;
+                loserBook = currentMatchup.book2;
             } else {
-                chosenContainer = document.getElementById('book2_container');
+                winnerBook = currentMatchup.book2;
+                loserBook = currentMatchup.book1;
             }
 
+            const chosenContainer = document.getElementById(
+                winnerId === currentMatchup.book1.id ? 'book1_container' : 'book2_container'
+            );
             chosenContainer.classList.add('chosen');
 
-            const [newWinnerElo, newLoserElo] = rate1vs1(
-                (winnerId === currentMatchup.book1.id) ? currentMatchup.book1.elo : currentMatchup.book2.elo,
-                (loserId === currentMatchup.book2.id) ? currentMatchup.book2.elo : currentMatchup.book1.elo
-            );
+            // Calculate new ratings
+            const [newWinnerElo, newLoserElo] = rate1vs1(winnerBook.elo, loserBook.elo);
 
+            // Update both books
             updateBookElo(winnerId, newWinnerElo);
             updateBookElo(loserId, newLoserElo);
 
+            // Show the update briefly before next matchup
             setTimeout(() => {
                 chosenContainer.classList.remove('chosen');
                 getNextMatchup();
@@ -119,6 +155,20 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const books = JSON.parse(localStorage.getItem('books')) || [];
+            const activeBooks = books.filter(b => b.active === 1);
+            
+            if (activeBooks.length < 2) {
+                const mainContent = document.getElementById('main-content');
+                mainContent.innerHTML = `
+                    <h2 style="text-align:center;">Not enough books to compare.</h2>
+                    <p style="text-align:center;">
+                        Please <a href="index.html">upload your Goodreads library</a> to get started.
+                    </p>
+                `;
+                return;
+            }
+
             getNextMatchup();
 
             // Keyboard controls
@@ -143,38 +193,41 @@
         <a href="leaderboard.html">Leaderboard</a> |
         <a href="about.html">About</a>
     </nav>
-    <h1 style="text-align:center;">Compare Books</h1>
-    <h3 style="text-align:center; color:#664b33"><i>Which book would you prefer to read?</i></h3>
-    <div class="matchup-container">
-        <div id="book1_container" class="book-container" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">
-            <div class="image-wrapper">
-                <img id="book1_img" alt="Book 1 Cover" onerror="this.src='images/placeholder.png'" onload="if (this.naturalWidth <= 1 && this.naturalHeight <= 1) this.src='images/placeholder.png';">
-            </div>
-            <div class="title-stats-container">
-                <h3 id="book1_title"></h3>
-                <small id="book1_stats"></small>
-            </div>
-            <p>Press Left Arrow or Click to choose this book</p>
-        </div>
-        
-        <div style="display:inline-block; text-align:center; margin-top: 20px;">
-            <p>Press Down Arrow or <br>Click 'Skip' to skip this matchup</p>
-            <button style="margin-top:20px;" onclick="getNextMatchup()">Skip</button>
-        </div>
 
-        <div id="book2_container" class="book-container" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">
-            <div class="image-wrapper">
-                <img id="book2_img" alt="Book 2 Cover" onerror="this.src='images/placeholder.png'" onload="if (this.naturalWidth <= 1 && this.naturalHeight <= 1) this.src='images/placeholder.png';">
+    <div id="main-content">
+        <h1 style="text-align:center;">Compare Books</h1>
+        <h3 style="text-align:center; color:#664b33"><i>Which book would you prefer to read?</i></h3>
+        <div class="matchup-container">
+            <div id="book1_container" class="book-container" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">
+                <div class="image-wrapper">
+                    <img id="book1_img" alt="Book 1 Cover" src="images/placeholder.png" onerror="this.src='images/placeholder.png';">
+                </div>
+                <div class="title-stats-container">
+                    <h3 id="book1_title"></h3>
+                    <small id="book1_stats"></small>
+                </div>
+                <p>Press Left Arrow or Click to choose this book</p>
             </div>
-            <div class="title-stats-container">
-                <h3 id="book2_title"></h3>
-                <small id="book2_stats"></small>
+            
+            <div style="display:inline-block; text-align:center; margin-top: 20px;">
+                <p>Press Down Arrow or <br>Click 'Skip' to skip this matchup</p>
+                <button style="margin-top:20px;" onclick="getNextMatchup()">Skip</button>
             </div>
-            <p>Press Right Arrow or Click to choose this book</p>
+
+            <div id="book2_container" class="book-container" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">
+                <div class="image-wrapper">
+                    <img id="book2_img" alt="Book 2 Cover" src="images/placeholder.png" onerror="this.src='images/placeholder.png';">
+                </div>
+                <div class="title-stats-container">
+                    <h3 id="book2_title"></h3>
+                    <small id="book2_stats"></small>
+                </div>
+                <p>Press Right Arrow or Click to choose this book</p>
+            </div>
         </div>
-    </div>
-    <div class="instructions">
-        <a href="leaderboard.html">View Leaderboard</a>
+        <div class="instructions">
+            <a href="leaderboard.html">View Leaderboard</a>
+        </div>
     </div>
 </body>
 </html>
