@@ -112,16 +112,23 @@
         }
 
         function downloadCSV() {
-            const csv = generateCSV();
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", "rankings.csv");
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            try {
+                const csv = generateCSV();
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                link.setAttribute("download", `book-rankings-${timestamp}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error generating CSV:', error);
+                alert('Error generating CSV file. Please check the console for details.');
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -153,23 +160,25 @@
     </nav>
 
     <div id="main-content">
-        <h1 style="text-align:center;">Leaderboard</h1>
-        <table>
-            <thead>
-                <tr>
-                    <th>Rank</th>
-                    <th>Cover</th>
-                    <th>Title</th>
-                    <th>Author</th>
-                    <th>ELO</th>
-                    <th>Matchups</th>
-                </tr>
-            </thead>
-            <tbody id="leaderboard-body"></tbody>
-        </table>
-        <a href="#" id="download-btn" class="download-button">Download Rankings CSV</a>
-        <div class="instructions">
-            <a href="ranking.html">Back to Rank Books</a>
+        <div class="container">
+            <h1>Book Rankings Leaderboard</h1>
+            <a href="#" id="download-btn" class="download-button">Download Rankings CSV</a>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Cover</th>
+                        <th>Title</th>
+                        <th>Author</th>
+                        <th>ELO</th>
+                        <th>Matchups</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body"></tbody>
+            </table>
+            <div class="instructions">
+                <a href="ranking.html">Back to Rank Books</a>
+            </div>
         </div>
     </div>
 </body>
