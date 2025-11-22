@@ -78,11 +78,16 @@
             const matchup = getNextMatchupData();
             if (!matchup.book1 || !matchup.book2) {
                 const mainContent = document.getElementById('main-content');
+                // Only replace the content inside, keeping the structure intact
                 mainContent.innerHTML = `
+                    <h1 style="text-align:center;">Compare Books</h1>
                     <h2 style="text-align:center;">Not enough books to compare.</h2>
                     <p style="text-align:center;">
                         Please <a href="index.html">upload your Goodreads library</a> to get started.
                     </p>
+                    <div class="instructions">
+                        <a href="leaderboard.html">View Leaderboard</a>
+                    </div>
                 `;
                 return;
             }
@@ -160,11 +165,16 @@
             
             if (activeBooks.length < 2) {
                 const mainContent = document.getElementById('main-content');
+                // Only replace the content inside, keeping the structure intact
                 mainContent.innerHTML = `
+                    <h1 style="text-align:center;">Compare Books</h1>
                     <h2 style="text-align:center;">Not enough books to compare.</h2>
                     <p style="text-align:center;">
                         Please <a href="index.html">upload your Goodreads library</a> to get started.
                     </p>
+                    <div class="instructions">
+                        <a href="leaderboard.html">View Leaderboard</a>
+                    </div>
                 `;
                 return;
             }

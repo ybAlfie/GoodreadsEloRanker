@@ -20,9 +20,17 @@ button {
 nav {
     text-align: center;
     margin-bottom: 20px;
+    padding: 10px 0;
+    position: relative;
+    z-index: 100;
 }
 
 nav a {
     margin: 0 10px;
     text-decoration: none;
+    color: #4e3927;
+}
+
+nav a:hover {
+    text-decoration: underline;
 }
