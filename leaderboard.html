@@ -97,15 +97,23 @@
         }
 
         function generateCSV() {
+            // Use the generateCSV function from app.js
+            if (typeof window.generateCSV === 'function') {
+                return window.generateCSV();
+            }
+            // Fallback if app.js hasn't loaded yet
             const books = JSON.parse(localStorage.getItem('books')) || [];
-            const headers = ["ISBN","Title","Author","ELO","Matchups","Active"];
+            const headers = ["ISBN","Title","Author","ELO","Matchups","Active","ID","Cover_URL","Number of Pages"];
             const rows = books.map(b => [
-                b.isbn,
-                b.title.replace(/,/g, ""), 
-                b.author.replace(/,/g, ""), 
+                b.isbn || '',
+                b.title ? b.title.replace(/,/g, "") : '', 
+                b.author ? b.author.replace(/,/g, "") : '', 
                 Math.round(b.elo),
-                b.matchups,
-                b.active
+                b.matchups || 0,
+                b.active || 0,
+                b.id || '',
+                b.cover_url || '',
+                b.num_pages || ''
             ]);
             const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
             return csvContent;

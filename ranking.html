@@ -103,9 +103,26 @@
             const book1Elo = Math.round(matchup.book1.elo);
             const book2Elo = Math.round(matchup.book2.elo);
             document.getElementById('book1_title').innerText = matchup.book1.title;
+            document.getElementById('book1_author').innerText = matchup.book1.author || "Unknown Author";
             document.getElementById('book1_stats').innerText = `ELO: ${book1Elo} | Matchups: ${matchup.book1.matchups}`;
+            // Handle pages display - check for valid number
+            const book1PagesNum = matchup.book1.num_pages;
+            const book1Pages = (book1PagesNum !== null && book1PagesNum !== undefined && book1PagesNum !== '' && !isNaN(book1PagesNum) && book1PagesNum > 0) 
+                ? `${book1PagesNum} pages` : '';
+            document.getElementById('book1_pages').innerText = book1Pages;
+            
             document.getElementById('book2_title').innerText = matchup.book2.title;
+            document.getElementById('book2_author').innerText = matchup.book2.author || "Unknown Author";
             document.getElementById('book2_stats').innerText = `ELO: ${book2Elo} | Matchups: ${matchup.book2.matchups}`;
+            
+            const book2PagesNum = matchup.book2.num_pages;
+            const book2Pages = (book2PagesNum !== null && book2PagesNum !== undefined && book2PagesNum !== '' && !isNaN(book2PagesNum) && book2PagesNum > 0) 
+                ? `${book2PagesNum} pages` : '';
+            document.getElementById('book2_pages').innerText = book2Pages;
+            
+            // Debug logging
+            console.log('Book 1:', matchup.book1.title, 'Pages:', book1PagesNum, 'Display:', book1Pages);
+            console.log('Book 2:', matchup.book2.title, 'Pages:', book2PagesNum, 'Display:', book2Pages);
 
             // Load new images
             if (matchup.book1.cover_url) {
@@ -214,7 +231,9 @@
                 </div>
                 <div class="title-stats-container">
                     <h3 id="book1_title"></h3>
+                    <small id="book1_author"></small>
                     <small id="book1_stats"></small>
+                    <small id="book1_pages"></small>
                 </div>
                 <p>Press Left Arrow or Click to choose this book</p>
             </div>
@@ -230,7 +249,9 @@
                 </div>
                 <div class="title-stats-container">
                     <h3 id="book2_title"></h3>
+                    <small id="book2_author"></small>
                     <small id="book2_stats"></small>
+                    <small id="book2_pages"></small>
                 </div>
                 <p>Press Right Arrow or Click to choose this book</p>
             </div>

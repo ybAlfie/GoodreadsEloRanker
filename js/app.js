@@ -1,5 +1,5 @@
 // Global variable to store book data
-// Each book object: {id, isbn, title, author, elo, matchups, active, cover_url}
+// Each book object: {id, isbn, title, author, elo, matchups, active, cover_url, num_pages}
 let books = JSON.parse(localStorage.getItem('books')) || [];
 
 // Save to localStorage
@@ -20,7 +20,7 @@ function escapeCSV(value) {
 
 function generateCSV() {
     const books = JSON.parse(localStorage.getItem('books')) || [];
-    const headers = ["ISBN", "Title", "Author", "ELO", "Matchups", "Active", "ID", "Cover_URL"];
+    const headers = ["ISBN", "Title", "Author", "ELO", "Matchups", "Active", "ID", "Cover_URL", "Number of Pages"];
     
     // Ensure each field is properly escaped
     const rows = books.map(b => [
@@ -31,11 +31,15 @@ function generateCSV() {
         b.matchups,
         b.active,
         escapeCSV(b.id),
-        escapeCSV(b.cover_url)  // Add cover URL to export
+        escapeCSV(b.cover_url),
+        b.num_pages || ''
     ]);
 
     return [headers, ...rows].map(row => row.join(",")).join("\n");
 }
+
+// Make generateCSV available globally
+window.generateCSV = generateCSV;
 
 // Helper function to clean ISBN and handle empty cases
 function cleanISBN(isbn) {
@@ -75,14 +79,38 @@ async function parseGoodreadsCSV(file, existingBooks) {
                         existingBooksMap.set(key, book);
                     });
 
+                    // Helper function to get number of pages from row, trying multiple column name variations
+                    function getNumPages(row) {
+                        const possibleColumns = [
+                            "Number of Pages",
+                            "Number Of Pages", 
+                            "Number of pages",
+                            "Pages",
+                            "Num Pages",
+                            "Number Of Pages"
+                        ];
+                        
+                        for (const col of possibleColumns) {
+                            const value = row[col];
+                            if (value && value.toString().trim() !== '') {
+                                const num = parseInt(value);
+                                if (!isNaN(num) && num > 0) {
+                                    return num;
+                                }
+                            }
+                        }
+                        return null;
+                    }
+
                     const wantToReadBooks = results.data
                         .filter(row => row["Exclusive Shelf"] === "to-read")
                         .map(row => {
                             const key = createBookKey(row);
                             const existingBook = existingBooksMap.get(key);
                             const isbn = cleanISBN(row["ISBN13"]) || cleanISBN(row["ISBN"]);
+                            const numPages = getNumPages(row);
 
-                            console.log(`Processing: "${row["Title"]}" by ${row["Author"]}, Key: ${key}, Found existing: ${!!existingBook}`);
+                            console.log(`Processing: "${row["Title"]}" by ${row["Author"]}, Pages: ${numPages}, Key: ${key}, Found existing: ${!!existingBook}`);
 
                             if (existingBook) {
                                 return {
@@ -92,6 +120,7 @@ async function parseGoodreadsCSV(file, existingBooks) {
                                     isbn: isbn || existingBook.isbn,
                                     cover_url: existingBook.cover_url || 
                                         (isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : null),
+                                    num_pages: numPages !== null ? numPages : (existingBook.num_pages || null),
                                     active: 1
                                 };
                             }
@@ -102,6 +131,7 @@ async function parseGoodreadsCSV(file, existingBooks) {
                                 title: row["Title"] || "Unknown Title",
                                 author: row["Author"] || "Unknown Author",
                                 cover_url: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : null,
+                                num_pages: numPages,
                                 elo: 1500,
                                 matchups: 0,
                                 active: 1
@@ -177,7 +207,8 @@ async function parseRankingsCSV(file, existingBooks) {
                                 matchups: Number(row.Matchups) || existingBook?.matchups || 0,
                                 active: Number(row.Active) || existingBook?.active || 1,
                                 cover_url: row.Cover_URL || existingBook?.cover_url || 
-                                    (row.ISBN ? `https://covers.openlibrary.org/b/isbn/${row.ISBN}-L.jpg` : null)
+                                    (row.ISBN ? `https://covers.openlibrary.org/b/isbn/${row.ISBN}-L.jpg` : null),
+                                num_pages: row["Number of Pages"] || existingBook?.num_pages || null
                             };
                         });
 
