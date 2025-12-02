@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>ELO Ranking</title>
@@ -17,12 +18,12 @@
             padding: 10px;
             box-sizing: border-box;
             position: relative;
-            overflow-wrap: break-word; 
+            overflow-wrap: break-word;
         }
 
         .image-wrapper {
             width: 100%;
-            height: 300px; 
+            height: 300px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -38,7 +39,7 @@
         .title-stats-container {
             display: flex;
             flex-direction: column;
-            justify-content: flex-start; 
+            justify-content: flex-start;
             margin-bottom: 10px;
         }
 
@@ -98,28 +99,32 @@
             const book2Img = document.getElementById('book2_img');
             book1Img.src = 'images/placeholder.png';
             book2Img.src = 'images/placeholder.png';
-            
+
             // Update text content
             const book1Elo = Math.round(matchup.book1.elo);
             const book2Elo = Math.round(matchup.book2.elo);
-            document.getElementById('book1_title').innerText = matchup.book1.title;
-            document.getElementById('book1_author').innerText = matchup.book1.author || "Unknown Author";
-            document.getElementById('book1_stats').innerText = `ELO: ${book1Elo} | Matchups: ${matchup.book1.matchups}`;
+
             // Handle pages display - check for valid number
             const book1PagesNum = matchup.book1.num_pages;
-            const book1Pages = (book1PagesNum !== null && book1PagesNum !== undefined && book1PagesNum !== '' && !isNaN(book1PagesNum) && book1PagesNum > 0) 
+            const book1Pages = (book1PagesNum !== null && book1PagesNum !== undefined && book1PagesNum !== '' && !isNaN(book1PagesNum) && book1PagesNum > 0)
                 ? `${book1PagesNum} pages` : '';
-            document.getElementById('book1_pages').innerText = book1Pages;
-            
-            document.getElementById('book2_title').innerText = matchup.book2.title;
-            document.getElementById('book2_author').innerText = matchup.book2.author || "Unknown Author";
-            document.getElementById('book2_stats').innerText = `ELO: ${book2Elo} | Matchups: ${matchup.book2.matchups}`;
-            
+
             const book2PagesNum = matchup.book2.num_pages;
-            const book2Pages = (book2PagesNum !== null && book2PagesNum !== undefined && book2PagesNum !== '' && !isNaN(book2PagesNum) && book2PagesNum > 0) 
+            const book2Pages = (book2PagesNum !== null && book2PagesNum !== undefined && book2PagesNum !== '' && !isNaN(book2PagesNum) && book2PagesNum > 0)
                 ? `${book2PagesNum} pages` : '';
-            document.getElementById('book2_pages').innerText = book2Pages;
-            
+
+            document.getElementById('book1_title').innerText = matchup.book1.title;
+            const book1AuthorText = matchup.book1.author || "Unknown Author";
+            document.getElementById('book1_author').innerText = book1Pages ? `${book1AuthorText} | ${book1Pages}` : book1AuthorText;
+            document.getElementById('book1_stats').innerText = `ELO: ${book1Elo}`;
+            document.getElementById('book1_pages').innerText = '';
+
+            document.getElementById('book2_title').innerText = matchup.book2.title;
+            const book2AuthorText = matchup.book2.author || "Unknown Author";
+            document.getElementById('book2_author').innerText = book2Pages ? `${book2AuthorText} | ${book2Pages}` : book2AuthorText;
+            document.getElementById('book2_stats').innerText = `ELO: ${book2Elo}`;
+            document.getElementById('book2_pages').innerText = '';
+
             // Debug logging
             console.log('Book 1:', matchup.book1.title, 'Pages:', book1PagesNum, 'Display:', book1Pages);
             console.log('Book 2:', matchup.book2.title, 'Pages:', book2PagesNum, 'Display:', book2Pages);
@@ -127,7 +132,7 @@
             // Load new images
             if (matchup.book1.cover_url) {
                 const img1 = new Image();
-                img1.onload = function() {
+                img1.onload = function () {
                     if (this.naturalWidth > 1 && this.naturalHeight > 1) {
                         book1Img.src = matchup.book1.cover_url;
                     }
@@ -137,7 +142,7 @@
 
             if (matchup.book2.cover_url) {
                 const img2 = new Image();
-                img2.onload = function() {
+                img2.onload = function () {
                     if (this.naturalWidth > 1 && this.naturalHeight > 1) {
                         book2Img.src = matchup.book2.cover_url;
                     }
@@ -148,7 +153,7 @@
 
         async function chooseWinner(winnerId, loserId) {
             let winnerBook, loserBook;
-            
+
             if (winnerId === currentMatchup.book1.id) {
                 winnerBook = currentMatchup.book1;
                 loserBook = currentMatchup.book2;
@@ -179,7 +184,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const books = JSON.parse(localStorage.getItem('books')) || [];
             const activeBooks = books.filter(b => b.active === 1);
-            
+
             if (activeBooks.length < 2) {
                 const mainContent = document.getElementById('main-content');
                 // Only replace the content inside, keeping the structure intact
@@ -200,19 +205,20 @@
 
             // Keyboard controls
             document.addEventListener('keydown', (e) => {
-                if(!currentMatchup) return;
-                const {book1, book2} = currentMatchup;
-                if(e.key === 'ArrowLeft') {
+                if (!currentMatchup) return;
+                const { book1, book2 } = currentMatchup;
+                if (e.key === 'ArrowLeft') {
                     chooseWinner(book1.id, book2.id);
-                } else if(e.key === 'ArrowRight') {
+                } else if (e.key === 'ArrowRight') {
                     chooseWinner(book2.id, book1.id);
-                } else if(e.key === 'ArrowDown') {
+                } else if (e.key === 'ArrowDown') {
                     getNextMatchup();
                 }
             });
         });
     </script>
 </head>
+
 <body>
     <nav style="text-align:center;">
         <a href="index.html">Upload</a> |
@@ -225,9 +231,11 @@
         <h1 style="text-align:center;">Compare Books</h1>
         <h3 style="text-align:center; color:#664b33"><i>Which book would you prefer to read?</i></h3>
         <div class="matchup-container">
-            <div id="book1_container" class="book-container" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">
+            <div id="book1_container" class="book-container"
+                onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">
                 <div class="image-wrapper">
-                    <img id="book1_img" alt="Book 1 Cover" src="images/placeholder.png" onerror="this.src='images/placeholder.png';">
+                    <img id="book1_img" alt="Book 1 Cover" src="images/placeholder.png"
+                        onerror="this.src='images/placeholder.png';">
                 </div>
                 <div class="title-stats-container">
                     <h3 id="book1_title"></h3>
@@ -237,15 +245,17 @@
                 </div>
                 <p>Press Left Arrow or Click to choose this book</p>
             </div>
-            
+
             <div style="display:inline-block; text-align:center; margin-top: 20px;">
                 <p>Press Down Arrow or <br>Click 'Skip' to skip this matchup</p>
                 <button style="margin-top:20px;" onclick="getNextMatchup()">Skip</button>
             </div>
 
-            <div id="book2_container" class="book-container" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">
+            <div id="book2_container" class="book-container"
+                onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">
                 <div class="image-wrapper">
-                    <img id="book2_img" alt="Book 2 Cover" src="images/placeholder.png" onerror="this.src='images/placeholder.png';">
+                    <img id="book2_img" alt="Book 2 Cover" src="images/placeholder.png"
+                        onerror="this.src='images/placeholder.png';">
                 </div>
                 <div class="title-stats-container">
                     <h3 id="book2_title"></h3>
@@ -261,4 +271,5 @@
         </div>
     </div>
 </body>
+
 </html>
