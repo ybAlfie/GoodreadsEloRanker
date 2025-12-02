@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>ELO Ranking</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/ranking-controls.css">
     <script src="js/elo.js"></script>
     <script src="js/app.js" defer></script>
     <style>
@@ -243,13 +244,10 @@
                     <small id="book1_stats"></small>
                     <small id="book1_pages"></small>
                 </div>
-                <p>Press Left Arrow or Click to choose this book</p>
+
             </div>
 
-            <div style="display:inline-block; text-align:center; margin-top: 20px;">
-                <p>Press Down Arrow or <br>Click 'Skip' to skip this matchup</p>
-                <button style="margin-top:20px;" onclick="getNextMatchup()">Skip</button>
-            </div>
+
 
             <div id="book2_container" class="book-container"
                 onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">
@@ -263,9 +261,21 @@
                     <small id="book2_stats"></small>
                     <small id="book2_pages"></small>
                 </div>
-                <p>Press Right Arrow or Click to choose this book</p>
+
             </div>
         </div>
+
+        <div class="controls-container">
+            <button class="btn-win" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">← Left
+                Wins</button>
+            <button class="btn-skip" onclick="getNextMatchup()">↓ Skip</button>
+            <button class="btn-win" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">Right Wins
+                →</button>
+        </div>
+        <div class="keyboard-hint">
+            Keyboard: ← Left wins | → Right wins | ↓ Skip
+        </div>
+
         <div class="instructions">
             <a href="leaderboard.html">View Leaderboard</a>
         </div>

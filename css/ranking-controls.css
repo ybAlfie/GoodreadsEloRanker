@@ -1,0 +1,43 @@
+.controls-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 30px auto 15px;
+    max-width: 600px;
+}
+
+.controls-container button {
+    padding: 12px 24px;
+    font-size: 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 150px;
+}
+
+.btn-win {
+    background-color: #567749;
+    color: white;
+}
+
+.btn-win:hover {
+    background-color: #3d6d3d;
+}
+
+.btn-skip {
+    background-color: #8b7150;
+    color: white;
+}
+
+.btn-skip:hover {
+    background-color: #74614b;
+}
+
+.keyboard-hint {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
