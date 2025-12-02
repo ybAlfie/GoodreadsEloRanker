@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -79,6 +79,37 @@
     </style>
     <script>
         let currentMatchup = null;
+
+        function updateProgressBar() {
+            const books = JSON.parse(localStorage.getItem('books')) || [];
+            const activeBooks = books.filter(b => b.active === 1);
+
+            if (activeBooks.length === 0) return;
+
+            const TARGET_MATCHUPS = 5;
+
+            // Count fully completed books for the text
+            const booksWithEnoughMatchups = activeBooks.filter(b => (b.matchups || 0) >= TARGET_MATCHUPS).length;
+
+            // Calculate partial progress for the bar (capped at target per book)
+            const totalPossibleMatchups = activeBooks.length * TARGET_MATCHUPS;
+            const currentTotalMatchups = activeBooks.reduce((sum, book) => {
+                return sum + Math.min((book.matchups || 0), TARGET_MATCHUPS);
+            }, 0);
+
+            const progressPercent = Math.min(100, (currentTotalMatchups / totalPossibleMatchups) * 100);
+
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+
+            if (progressBar) {
+                progressBar.style.width = progressPercent + '%';
+            }
+
+            if (progressText) {
+                progressText.innerText = `${booksWithEnoughMatchups}/${activeBooks.length} books with 5+ matchups • ${progressPercent.toFixed(2)}% complete`;
+            }
+        }
 
         function getNextMatchup() {
             const matchup = getNextMatchupData();
@@ -183,6 +214,7 @@
             setTimeout(() => {
                 chosenContainer.classList.remove('chosen');
                 getNextMatchup();
+                updateProgressBar();
             }, 200);
         }
 
@@ -207,6 +239,7 @@
             }
 
             getNextMatchup();
+            updateProgressBar();
 
             // Keyboard controls
             document.addEventListener('keydown', (e) => {
@@ -269,21 +302,27 @@
             </div>
         </div>
 
-        <div class="controls-container">
-            <button class="btn-win" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">← Left
-                Wins</button>
-            <button class="btn-skip" onclick="getNextMatchup()">↓ Skip</button>
-            <button class="btn-win" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">Right Wins
-                →</button>
+                <div class="controls-container">
+            <button class="btn-win" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">&larr; Left Wins</button>
+            <button class="btn-skip" onclick="getNextMatchup()">&darr; Skip</button>
+            <button class="btn-win" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">Right Wins &rarr;</button>
         </div>
         <div class="keyboard-hint">
-            Keyboard: ← Left wins | → Right wins | ↓ Skip
+            Keyboard: &larr; Left wins | &rarr; Right wins | &darr; Skip
         </div>
 
         <div class="instructions">
             <a href="leaderboard.html">View Leaderboard</a>
         </div>
+
+        <div class="progress-section">
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <div id="progress-text" class="progress-text"></div>
+        </div>
     </div>
 </body>
 
 </html>
+
