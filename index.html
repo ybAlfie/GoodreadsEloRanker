@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Goodreads ELO Ranker - Upload</title>
@@ -9,6 +10,7 @@
     <script src="js/elo.js"></script>
     <script src="js/app.js" defer></script>
 </head>
+
 <body>
     <nav style="text-align:center;">
         <a href="index.html">Upload</a> |
@@ -17,7 +19,8 @@
         <a href="about.html">About</a>
     </nav>
     <h1>Goodreads ELO Ranker &#128218;</h1>
-    <h3 style="text-align:center; color:#664b33"><i>Pair books in one-on-one matchups and discover which titles rise to the top of your want to read pile.</i></h3>
+    <h3 style="text-align:center; color:#664b33"><i>Pair books in one-on-one matchups and discover which titles rise to
+            the top of your want to read pile.</i></h3>
     <form id="upload-form">
         <p><strong>Goodreads Library Export:</strong></p>
         <input type="file" id="goodreads-file" accept=".csv">
@@ -33,7 +36,9 @@
         </button>
     </div>
 
-    <p style="margin-top:20px;">Upload your Goodreads Library Export to get started or a Previous Rankings CSV to contiune where you left off. <br> If you've made changes to your Goodreads library, you can upload both files to merge changes.</p>
+    <p style="margin-top:20px;">Upload your Goodreads Library Export to get started or a Previous Rankings CSV to
+        contiune where you left off. <br> If you've made changes to your Goodreads library, you can upload both files to
+        merge changes.</p>
 
     <div class="instructions">
         <a href="about.html">Click here to check the about page and read the how to guide.</a>
@@ -41,7 +46,7 @@
 
     <script>
         // Add clear storage functionality
-        document.getElementById('clear-storage').addEventListener('click', function() {
+        document.getElementById('clear-storage').addEventListener('click', function () {
             if (confirm('Are you sure you want to clear all Goodreads ELO Ranker data? This will remove all your rankings and cannot be undone.')) {
                 // Only remove our specific data
                 localStorage.removeItem('books');
@@ -49,7 +54,7 @@
             }
         });
 
-        document.getElementById('upload-form').addEventListener('submit', async function(e) {
+        document.getElementById('upload-form').addEventListener('submit', async function (e) {
             e.preventDefault();
 
             const goodreadsFile = document.getElementById('goodreads-file').files[0];
@@ -64,14 +69,19 @@
             let loadedBooks = JSON.parse(localStorage.getItem('books')) || [];
 
             try {
-                // If Goodreads file is provided, parse and merge
-                if (goodreadsFile) {
-                    loadedBooks = await parseGoodreadsCSV(goodreadsFile, loadedBooks);
+                // Process files in the correct order:
+                // 1. If rankings file exists, load it first to get ELO/matchup data
+                // 2. Then process Goodreads to update active status based on current want-to-read list
+
+                if (rankingsFile) {
+                    console.log('Processing Rankings CSV...');
+                    loadedBooks = await parseRankingsCSV(rankingsFile, loadedBooks);
                 }
 
-                // If Rankings file is provided, parse and merge
-                if (rankingsFile) {
-                    loadedBooks = await parseRankingsCSV(rankingsFile, loadedBooks);
+                if (goodreadsFile) {
+                    console.log('Processing Goodreads CSV...');
+                    // This will merge with rankings data and set active status based on Goodreads
+                    loadedBooks = await parseGoodreadsCSV(goodreadsFile, loadedBooks);
                 }
 
                 // Save final merged books to localStorage
@@ -83,4 +93,5 @@
         });
     </script>
 </body>
+
 </html>

@@ -216,6 +216,11 @@ async function parseRankingsCSV(file, existingBooks) {
                             const key = createBookKey(row);
                             const existingBook = existingBooksMap.get(key);
 
+                            // Fix: Properly handle active=0 (use ?? instead of || to avoid treating 0 as falsy)
+                            const active = row.Active !== undefined && row.Active !== ''
+                                ? Number(row.Active)
+                                : (existingBook?.active ?? 1);
+
                             return {
                                 id: row.ID || existingBook?.id || generateUniqueId(),
                                 isbn: row.ISBN || existingBook?.isbn || '',
@@ -223,7 +228,7 @@ async function parseRankingsCSV(file, existingBooks) {
                                 author: row.Author || existingBook?.author || "Unknown Author",
                                 elo: Number(row.ELO) || existingBook?.elo || 1500,
                                 matchups: Number(row.Matchups) || existingBook?.matchups || 0,
-                                active: Number(row.Active) || existingBook?.active || 1,
+                                active: active,
                                 cover_url: row.Cover_URL || existingBook?.cover_url ||
                                     (row.ISBN ? `https://covers.openlibrary.org/b/isbn/${row.ISBN}-L.jpg` : null),
                                 num_pages: row["Number of Pages"] || existingBook?.num_pages || null,
