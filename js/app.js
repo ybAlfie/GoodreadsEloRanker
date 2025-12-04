@@ -20,8 +20,8 @@ function escapeCSV(value) {
 
 function generateCSV() {
     const books = JSON.parse(localStorage.getItem('books')) || [];
-    const headers = ["ISBN", "Title", "Author", "ELO", "Matchups", "Active", "ID", "Cover_URL", "Number of Pages"];
-    
+    const headers = ["ISBN", "Title", "Author", "ELO", "Matchups", "Active", "ID", "Cover_URL", "Number of Pages", "Additional Authors", "Average Rating", "Publisher", "Year Published", "Original Publication Year", "Date Added"];
+
     // Ensure each field is properly escaped
     const rows = books.map(b => [
         escapeCSV(b.isbn),
@@ -32,7 +32,13 @@ function generateCSV() {
         b.active,
         escapeCSV(b.id),
         escapeCSV(b.cover_url),
-        b.num_pages || ''
+        b.num_pages || '',
+        escapeCSV(b.additional_authors),
+        escapeCSV(b.average_rating),
+        escapeCSV(b.publisher),
+        escapeCSV(b.year_published),
+        escapeCSV(b.original_publication_year),
+        escapeCSV(b.date_added)
     ]);
 
     return [headers, ...rows].map(row => row.join(",")).join("\n");
@@ -55,7 +61,7 @@ function createBookKey(book) {
     // Create a key using ISBN or title+author if ISBN is missing
     const isbn = cleanISBN(book.isbn || book.ISBN13 || book.ISBN);
     if (isbn) return isbn;
-    
+
     // Fallback to title+author combination
     const title = (book.title || book.Title || '').toLowerCase().trim();
     const author = (book.author || book.Author || '').toLowerCase().trim();
@@ -68,10 +74,10 @@ async function parseGoodreadsCSV(file, existingBooks) {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            complete: function(results) {
+            complete: function (results) {
                 try {
                     console.log('Parsing Goodreads CSV with', results.data.length, 'rows');
-                    
+
                     // Create maps using our book key function
                     const existingBooksMap = new Map();
                     existingBooks.forEach(book => {
@@ -83,13 +89,13 @@ async function parseGoodreadsCSV(file, existingBooks) {
                     function getNumPages(row) {
                         const possibleColumns = [
                             "Number of Pages",
-                            "Number Of Pages", 
+                            "Number Of Pages",
                             "Number of pages",
                             "Pages",
                             "Num Pages",
                             "Number Of Pages"
                         ];
-                        
+
                         for (const col of possibleColumns) {
                             const value = row[col];
                             if (value && value.toString().trim() !== '') {
@@ -118,9 +124,15 @@ async function parseGoodreadsCSV(file, existingBooks) {
                                     title: row["Title"] || existingBook.title,
                                     author: row["Author"] || existingBook.author,
                                     isbn: isbn || existingBook.isbn,
-                                    cover_url: existingBook.cover_url || 
+                                    cover_url: existingBook.cover_url ||
                                         (isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : null),
                                     num_pages: numPages !== null ? numPages : (existingBook.num_pages || null),
+                                    additional_authors: row["Additional Authors"] || existingBook.additional_authors,
+                                    average_rating: row["Average Rating"] || existingBook.average_rating,
+                                    publisher: row["Publisher"] || existingBook.publisher,
+                                    year_published: row["Year Published"] || existingBook.year_published,
+                                    original_publication_year: row["Original Publication Year"] || existingBook.original_publication_year,
+                                    date_added: row["Date Added"] || existingBook.date_added,
                                     active: 1
                                 };
                             }
@@ -132,6 +144,12 @@ async function parseGoodreadsCSV(file, existingBooks) {
                                 author: row["Author"] || "Unknown Author",
                                 cover_url: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : null,
                                 num_pages: numPages,
+                                additional_authors: row["Additional Authors"] || '',
+                                average_rating: row["Average Rating"] || '',
+                                publisher: row["Publisher"] || '',
+                                year_published: row["Year Published"] || '',
+                                original_publication_year: row["Original Publication Year"] || '',
+                                date_added: row["Date Added"] || '',
                                 elo: 1500,
                                 matchups: 0,
                                 active: 1
@@ -166,7 +184,7 @@ async function parseGoodreadsCSV(file, existingBooks) {
                     reject(error);
                 }
             },
-            error: function(error) {
+            error: function (error) {
                 console.error('CSV parsing error:', error);
                 reject(error);
             }
@@ -180,10 +198,10 @@ async function parseRankingsCSV(file, existingBooks) {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            complete: function(results) {
+            complete: function (results) {
                 try {
                     console.log('Parsing rankings CSV with', results.data.length, 'rows');
-                    
+
                     // Create maps using our book key function
                     const existingBooksMap = new Map();
                     existingBooks.forEach(book => {
@@ -197,7 +215,7 @@ async function parseRankingsCSV(file, existingBooks) {
                         .map(row => {
                             const key = createBookKey(row);
                             const existingBook = existingBooksMap.get(key);
-                            
+
                             return {
                                 id: row.ID || existingBook?.id || generateUniqueId(),
                                 isbn: row.ISBN || existingBook?.isbn || '',
@@ -206,9 +224,15 @@ async function parseRankingsCSV(file, existingBooks) {
                                 elo: Number(row.ELO) || existingBook?.elo || 1500,
                                 matchups: Number(row.Matchups) || existingBook?.matchups || 0,
                                 active: Number(row.Active) || existingBook?.active || 1,
-                                cover_url: row.Cover_URL || existingBook?.cover_url || 
+                                cover_url: row.Cover_URL || existingBook?.cover_url ||
                                     (row.ISBN ? `https://covers.openlibrary.org/b/isbn/${row.ISBN}-L.jpg` : null),
-                                num_pages: row["Number of Pages"] || existingBook?.num_pages || null
+                                num_pages: row["Number of Pages"] || existingBook?.num_pages || null,
+                                additional_authors: row["Additional Authors"] || existingBook?.additional_authors || '',
+                                average_rating: row["Average Rating"] || existingBook?.average_rating || '',
+                                publisher: row["Publisher"] || existingBook?.publisher || '',
+                                year_published: row["Year Published"] || existingBook?.year_published || '',
+                                original_publication_year: row["Original Publication Year"] || existingBook?.original_publication_year || '',
+                                date_added: row["Date Added"] || existingBook?.date_added || ''
                             };
                         });
 
@@ -222,7 +246,7 @@ async function parseRankingsCSV(file, existingBooks) {
                     reject(error);
                 }
             },
-            error: function(error) {
+            error: function (error) {
                 console.error('CSV parsing error:', error);
                 reject(error);
             }
@@ -242,13 +266,13 @@ function updateBookElo(bookId, newElo) {
         console.error('Book not found:', bookId);
         return;
     }
-    
+
     books[bookIndex] = {
         ...books[bookIndex],
         elo: newElo,
         matchups: (books[bookIndex].matchups || 0) + 1
     };
-    
+
     saveBooks();
 }
 
@@ -256,7 +280,7 @@ function updateBookElo(bookId, newElo) {
 function getNextMatchupData(options = {}) {
     books = JSON.parse(localStorage.getItem('books')) || [];
     let activeBooks = books.filter(b => b.active === 1);
-    
+
     if (activeBooks.length < 2) return { book1: null, book2: null };
 
     // Apply limit filter if enabled
@@ -265,18 +289,18 @@ function getNextMatchupData(options = {}) {
         // We clone the array to avoid mutating the original activeBooks order if it matters, 
         // though activeBooks is already a filtered copy.
         const sortedBooks = [...activeBooks].sort((a, b) => b.elo - a.elo);
-        
+
         let limitCount = activeBooks.length;
-        
+
         if (options.limitType === 'percent') {
             limitCount = Math.ceil(activeBooks.length * (options.limitValue / 100));
         } else {
             limitCount = parseInt(options.limitValue);
         }
-        
+
         // Ensure at least 2 books
         limitCount = Math.max(2, Math.min(limitCount, activeBooks.length));
-        
+
         // Filter activeBooks to only include those in the top set
         const topBooksSet = new Set(sortedBooks.slice(0, limitCount).map(b => b.id));
         activeBooks = activeBooks.filter(b => topBooksSet.has(b.id));
