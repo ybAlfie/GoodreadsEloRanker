@@ -147,7 +147,7 @@
 
             if (activeBooks.length === 0) return;
 
-            const TARGET_MATCHUPS = 5;
+            const TARGET_MATCHUPS = parseInt(localStorage.getItem('targetMatchups')) || 5;
 
             // Count fully completed books for the text
             const booksWithEnoughMatchups = activeBooks.filter(b => (b.matchups || 0) >= TARGET_MATCHUPS).length;
@@ -168,7 +168,27 @@
             }
 
             if (progressText) {
-                progressText.innerText = `${booksWithEnoughMatchups}/${activeBooks.length} books with at least 5 matchups • ${progressPercent.toFixed(2)}% complete`;
+                progressText.innerHTML = `${booksWithEnoughMatchups}/${activeBooks.length} books with at least <select id="target-matchups-select" onchange="updateTargetMatchups()" style="padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; margin: 0 2px; cursor: pointer;">
+                    <option value="1">1</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select> matchups • ${progressPercent.toFixed(2)}% complete`;
+
+                const selectElement = document.getElementById('target-matchups-select');
+                if (selectElement) {
+                    selectElement.value = TARGET_MATCHUPS;
+                }
+            }
+        }
+
+        function updateTargetMatchups() {
+            const select = document.getElementById('target-matchups-select');
+            if (select) {
+                localStorage.setItem('targetMatchups', select.value);
+                updateProgressBar();
             }
         }
 
