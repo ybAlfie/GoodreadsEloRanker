@@ -253,10 +253,34 @@ function updateBookElo(bookId, newElo) {
 }
 
 // Get next matchup data
-function getNextMatchupData() {
+function getNextMatchupData(options = {}) {
     books = JSON.parse(localStorage.getItem('books')) || [];
-    const activeBooks = books.filter(b => b.active === 1);
+    let activeBooks = books.filter(b => b.active === 1);
+    
     if (activeBooks.length < 2) return { book1: null, book2: null };
+
+    // Apply limit filter if enabled
+    if (options.limitEnabled && options.limitValue > 0) {
+        // Sort by ELO descending to determine "Top" books
+        // We clone the array to avoid mutating the original activeBooks order if it matters, 
+        // though activeBooks is already a filtered copy.
+        const sortedBooks = [...activeBooks].sort((a, b) => b.elo - a.elo);
+        
+        let limitCount = activeBooks.length;
+        
+        if (options.limitType === 'percent') {
+            limitCount = Math.ceil(activeBooks.length * (options.limitValue / 100));
+        } else {
+            limitCount = parseInt(options.limitValue);
+        }
+        
+        // Ensure at least 2 books
+        limitCount = Math.max(2, Math.min(limitCount, activeBooks.length));
+        
+        // Filter activeBooks to only include those in the top set
+        const topBooksSet = new Set(sortedBooks.slice(0, limitCount).map(b => b.id));
+        activeBooks = activeBooks.filter(b => topBooksSet.has(b.id));
+    }
 
     // Prioritize books with fewer matchups
     const minMatchups = Math.min(...activeBooks.map(b => b.matchups));

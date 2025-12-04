@@ -111,8 +111,61 @@
             }
         }
 
+        function loadLimitSettings() {
+            const settings = JSON.parse(localStorage.getItem('rankingLimitSettings')) || {
+                enabled: false,
+                value: 50,
+                type: 'percent'
+            };
+
+            const limitEnabled = document.getElementById('limit-enabled');
+            const limitValue = document.getElementById('limit-value');
+            const limitType = document.getElementById('limit-type');
+
+            if (limitEnabled) limitEnabled.checked = settings.enabled;
+            if (limitValue) limitValue.value = settings.value;
+            if (limitType) limitType.value = settings.type;
+
+            const settingsDiv = document.getElementById('limit-settings');
+            if (settingsDiv) {
+                if (settings.enabled) {
+                    settingsDiv.classList.remove('disabled');
+                } else {
+                    settingsDiv.classList.add('disabled');
+                }
+            }
+            return settings;
+        }
+
+        function saveLimitSettings() {
+            const settings = {
+                enabled: document.getElementById('limit-enabled').checked,
+                value: document.getElementById('limit-value').value,
+                type: document.getElementById('limit-type').value
+            };
+            localStorage.setItem('rankingLimitSettings', JSON.stringify(settings));
+        }
+
+        function toggleLimitControls() {
+            const enabled = document.getElementById('limit-enabled').checked;
+            const settingsDiv = document.getElementById('limit-settings');
+            if (enabled) {
+                settingsDiv.classList.remove('disabled');
+            } else {
+                settingsDiv.classList.add('disabled');
+            }
+            saveLimitSettings();
+        }
+
         function getNextMatchup() {
-            const matchup = getNextMatchupData();
+            const settings = JSON.parse(localStorage.getItem('rankingLimitSettings')) || { enabled: false };
+            const options = {
+                limitEnabled: settings.enabled,
+                limitValue: settings.value,
+                limitType: settings.type
+            };
+
+            const matchup = getNextMatchupData(options);
             if (!matchup.book1 || !matchup.book2) {
                 const mainContent = document.getElementById('main-content');
                 // Only replace the content inside, keeping the structure intact
@@ -238,6 +291,7 @@
                 return;
             }
 
+            loadLimitSettings();
             getNextMatchup();
             updateProgressBar();
 
@@ -302,10 +356,12 @@
             </div>
         </div>
 
-                <div class="controls-container">
-            <button class="btn-win" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">&larr; Left Wins</button>
+        <div class="controls-container">
+            <button class="btn-win" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">&larr; Left
+                Wins</button>
             <button class="btn-skip" onclick="getNextMatchup()">&darr; Skip</button>
-            <button class="btn-win" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">Right Wins &rarr;</button>
+            <button class="btn-win" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">Right Wins
+                &rarr;</button>
         </div>
         <div class="keyboard-hint">
             Keyboard: &larr; Left wins | &rarr; Right wins | &darr; Skip
@@ -320,9 +376,28 @@
                 <div id="progress-bar" class="progress-bar"></div>
             </div>
             <div id="progress-text" class="progress-text"></div>
+
+            <div class="limit-controls">
+                <div class="limit-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="limit-enabled" onchange="toggleLimitControls()">
+                        <span class="slider round"></span>
+                    </label>
+                    <span>Limit Matchups</span>
+                </div>
+
+                <div id="limit-settings" class="limit-settings disabled">
+                    <span>Top</span>
+                    <input type="number" id="limit-value" value="50" min="1" onchange="saveLimitSettings()">
+                    <select id="limit-type" onchange="saveLimitSettings()">
+                        <option value="percent">%</option>
+                        <option value="number">Books</option>
+                    </select>
+                    <span>by Rank</span>
+                </div>
+            </div>
         </div>
     </div>
 </body>
 
 </html>
-
