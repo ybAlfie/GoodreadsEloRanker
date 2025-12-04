@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Leaderboard</title>
@@ -11,7 +12,8 @@
             border-collapse: collapse;
         }
 
-        th, td {
+        th,
+        td {
             border: 1px solid #ccc;
             padding: 10px;
             text-align: center;
@@ -48,7 +50,7 @@
         function displayLeaderboard() {
             const tableBody = document.getElementById('leaderboard-body');
             const books = JSON.parse(localStorage.getItem('books')) || [];
-            const sortedBooks = books.filter(b => b.active === 1).sort((a,b) => b.elo - a.elo);
+            const sortedBooks = books.filter(b => b.active === 1).sort((a, b) => b.elo - a.elo);
 
             sortedBooks.forEach((book, index) => {
                 const row = document.createElement('tr');
@@ -64,7 +66,7 @@
                 img.setAttribute('onerror', "this.src='images/placeholder.png';");
                 img.src = book.cover_url || 'images/placeholder.png';
                 img.alt = `${book.title} Cover`;
-                img.onload = function() {
+                img.onload = function () {
                     if (this.naturalWidth <= 1 && this.naturalHeight <= 1) {
                         this.src = 'images/placeholder.png';
                     }
@@ -92,6 +94,12 @@
                 matchupsCell.innerText = book.matchups;
                 row.appendChild(matchupsCell);
 
+                // Pages
+                const pagesCell = document.createElement('td');
+                const pageCount = book.num_pages;
+                pagesCell.innerText = (pageCount && pageCount > 0) ? pageCount : '-';
+                row.appendChild(pagesCell);
+
                 tableBody.appendChild(row);
             });
         }
@@ -103,11 +111,11 @@
             }
             // Fallback if app.js hasn't loaded yet
             const books = JSON.parse(localStorage.getItem('books')) || [];
-            const headers = ["ISBN","Title","Author","ELO","Matchups","Active","ID","Cover_URL","Number of Pages"];
+            const headers = ["ISBN", "Title", "Author", "ELO", "Matchups", "Active", "ID", "Cover_URL", "Number of Pages"];
             const rows = books.map(b => [
                 b.isbn || '',
-                b.title ? b.title.replace(/,/g, "") : '', 
-                b.author ? b.author.replace(/,/g, "") : '', 
+                b.title ? b.title.replace(/,/g, "") : '',
+                b.author ? b.author.replace(/,/g, "") : '',
                 Math.round(b.elo),
                 b.matchups || 0,
                 b.active || 0,
@@ -142,7 +150,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const books = JSON.parse(localStorage.getItem('books')) || [];
             const activeBooks = books.filter(b => b.active === 1);
-            
+
             if (activeBooks.length === 0) {
                 const mainContent = document.getElementById('main-content');
                 // Only replace the content inside, keeping the structure intact
@@ -166,6 +174,7 @@
         });
     </script>
 </head>
+
 <body>
     <nav style="text-align:center;">
         <a href="index.html">Upload</a> |
@@ -187,6 +196,7 @@
                         <th>Author</th>
                         <th>ELO</th>
                         <th>Matchups</th>
+                        <th>Pages</th>
                     </tr>
                 </thead>
                 <tbody id="leaderboard-body"></tbody>
@@ -197,4 +207,5 @@
         </div>
     </div>
 </body>
+
 </html>
