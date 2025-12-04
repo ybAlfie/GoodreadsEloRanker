@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>Leaderboard</title>
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/ranking-controls.css">
     <style>
         table {
             width: 80%;
@@ -44,9 +45,123 @@
             text-align: center;
             margin-top: 20px;
         }
+
+        /* Row hover styling */
+        tbody tr {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background-color: #9fc48f;
+        }
+
+        /* Info popup - attached to body, not to row */
+        .info-popup {
+            position: fixed;
+            z-index: 1000;
+        }
+
+        /* Hint text styling */
+        .hover-hint {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
     </style>
     <script src="js/app.js" defer></script>
     <script>
+        let infoTimers = {};
+        let activePopup = null;
+
+        function showInfo(bookId, event) {
+            clearTimeout(infoTimers[bookId]);
+            const popup = document.getElementById(`book_info_${bookId}`);
+            if (popup) {
+                // Position popup based on row position
+                const row = event.currentTarget;
+                const rect = row.getBoundingClientRect();
+                popup.style.top = `${rect.top + rect.height / 2}px`;
+                popup.style.left = `${rect.right + 20}px`;
+                popup.style.transform = 'translateY(-50%)';
+
+                popup.classList.add('show');
+                activePopup = popup;
+            }
+        }
+
+        function hideInfo(bookId) {
+            infoTimers[bookId] = setTimeout(() => {
+                const popup = document.getElementById(`book_info_${bookId}`);
+                if (popup) {
+                    popup.classList.remove('show');
+                    if (activePopup === popup) {
+                        activePopup = null;
+                    }
+                }
+            }, 200);
+        }
+
+        function toggleInfo(bookId, event) {
+            const popup = document.getElementById(`book_info_${bookId}`);
+            if (popup) {
+                if (popup.classList.contains('show')) {
+                    popup.classList.remove('show');
+                    activePopup = null;
+                } else {
+                    // Hide any other active popup
+                    if (activePopup) {
+                        activePopup.classList.remove('show');
+                    }
+                    // Position and show this popup
+                    const row = event.currentTarget;
+                    const rect = row.getBoundingClientRect();
+                    popup.style.top = `${rect.top + rect.height / 2}px`;
+                    popup.style.left = `${rect.right + 20}px`;
+                    popup.style.transform = 'translateY(-50%)';
+                    popup.classList.add('show');
+                    activePopup = popup;
+                }
+            }
+        }
+
+        function generateInfoContent(book) {
+            const parts = [];
+
+            if (book.additional_authors && book.additional_authors.trim()) {
+                parts.push(`<p><strong>Additional Authors:</strong> ${book.additional_authors}</p>`);
+            }
+
+            if (book.average_rating) {
+                parts.push(`<p><strong>Avg Rating:</strong> ${book.average_rating}</p>`);
+            }
+
+            if (book.publisher && book.publisher.trim()) {
+                parts.push(`<p><strong>Publisher:</strong> ${book.publisher}</p>`);
+            }
+
+            if (book.year_published) {
+                parts.push(`<p><strong>Year Published:</strong> ${book.year_published}</p>`);
+            }
+
+            if (book.original_publication_year && book.original_publication_year !== book.year_published) {
+                parts.push(`<p><strong>Original Year:</strong> ${book.original_publication_year}</p>`);
+            }
+
+            if (book.date_added) {
+                const dateOnly = book.date_added.split(' ')[0];
+                parts.push(`<p><strong>Date Added:</strong> ${dateOnly}</p>`);
+            }
+
+            // Add search link
+            const searchQuery = encodeURIComponent(`${book.title} ${book.author}`);
+            parts.push(`<a href="https://www.google.com/search?q=${searchQuery}" target="_blank">🔍 Search Online</a>`);
+
+            return parts.length > 0 ? '<h4>Additional Info</h4>' + parts.join('') : '<h4>Additional Info</h4><p><em>No additional info available</em></p>';
+        }
+
         function displayLeaderboard() {
             const tableBody = document.getElementById('leaderboard-body');
             const books = JSON.parse(localStorage.getItem('books')) || [];
@@ -99,6 +214,22 @@
                 const pageCount = book.num_pages;
                 pagesCell.innerText = (pageCount && pageCount > 0) ? pageCount : '-';
                 row.appendChild(pagesCell);
+
+                // Info popup attached to body
+                const infoPopup = document.createElement('div');
+                infoPopup.id = `book_info_${book.id}`;
+                infoPopup.className = 'info-popup';
+                infoPopup.innerHTML = generateInfoContent(book);
+                infoPopup.onclick = (e) => e.stopPropagation();
+                infoPopup.onmouseenter = () => clearTimeout(infoTimers[book.id]);
+                infoPopup.onmouseleave = () => hideInfo(book.id);
+
+                document.body.appendChild(infoPopup);
+
+                // Row hover/click handlers
+                row.onmouseenter = (e) => showInfo(book.id, e);
+                row.onmouseleave = () => hideInfo(book.id);
+                row.onclick = (e) => toggleInfo(book.id, e);
 
                 tableBody.appendChild(row);
             });
@@ -187,6 +318,7 @@
         <div class="container">
             <h1>Book Rankings Leaderboard</h1>
             <a href="#" id="download-btn" class="download-button">Download Rankings CSV</a>
+            <div class="hover-hint">Hover or click a book for additional information.</div>
             <table>
                 <thead>
                     <tr>
