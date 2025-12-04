@@ -286,8 +286,6 @@ function getNextMatchupData(options = {}) {
     // Apply limit filter if enabled
     if (options.limitEnabled && options.limitValue > 0) {
         // Sort by ELO descending to determine "Top" books
-        // We clone the array to avoid mutating the original activeBooks order if it matters, 
-        // though activeBooks is already a filtered copy.
         const sortedBooks = [...activeBooks].sort((a, b) => b.elo - a.elo);
 
         let limitCount = activeBooks.length;
@@ -306,16 +304,49 @@ function getNextMatchupData(options = {}) {
         activeBooks = activeBooks.filter(b => topBooksSet.has(b.id));
     }
 
-    // Prioritize books with fewer matchups
-    const minMatchups = Math.min(...activeBooks.map(b => b.matchups));
-    const underRanked = activeBooks.filter(b => b.matchups <= minMatchups + 2); // small leeway
-    let pool = underRanked.length >= 2 ? underRanked : activeBooks;
+    // 1. Pick Book 1 (Prioritize lowest matchups)
+    // Find the minimum number of matchups any book has
+    const minMatchups = Math.min(...activeBooks.map(b => b.matchups || 0));
 
-    const shuffled = pool.sort(() => 0.5 - Math.random());
-    const book1 = shuffled[0];
-    const book2 = shuffled[1];
+    // Define "low matchups" pool (within 2 of the minimum)
+    // This ensures we focus on books that need ranking the most
+    const lowMatchupPool = activeBooks.filter(b => (b.matchups || 0) <= minMatchups + 2);
 
-    // Increment their matchups count when displayed
+    // If we have books in the low matchup pool, pick one randomly. Otherwise pick any active book.
+    const pool1 = lowMatchupPool.length > 0 ? lowMatchupPool : activeBooks;
+    const book1 = pool1[Math.floor(Math.random() * pool1.length)];
+
+    // 2. Pick Book 2
+    // Candidates are all other active books excluding Book 1
+    let candidates = activeBooks.filter(b => b.id !== book1.id);
+
+    // Constraint 1: Avoid "New vs New" loops
+    // If Book 1 is "new" (low matchups) and the pool of such books is small (< 20),
+    // try to pick an opponent that is established (has more matchups).
+    // This satisfies the user request: "only one of the books need to come from that smaller pool"
+    const NEW_BOOK_THRESHOLD = 5;
+    const SMALL_POOL_SIZE = 20;
+
+    if ((book1.matchups || 0) < NEW_BOOK_THRESHOLD && lowMatchupPool.length < SMALL_POOL_SIZE) {
+        const establishedCandidates = candidates.filter(b => (b.matchups || 0) >= NEW_BOOK_THRESHOLD);
+        // Only switch to established candidates if any exist
+        if (establishedCandidates.length > 0) {
+            candidates = establishedCandidates;
+        }
+    }
+
+    // Constraint 2: Similar ELO
+    // Sort candidates by ELO difference (closest to Book 1 first)
+    candidates.sort((a, b) => Math.abs(a.elo - book1.elo) - Math.abs(b.elo - book1.elo));
+
+    // Pick from the top N closest matches to add some variety and avoid exact repeats
+    // We take the top 5 or top 10% of candidates, whichever is larger
+    const topN = Math.max(5, Math.ceil(candidates.length * 0.1));
+    const bestCandidates = candidates.slice(0, topN);
+
+    const book2 = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
+
+    // Initialize matchups count if undefined (does not increment)
     book1.matchups = book1.matchups || 0;
     book2.matchups = book2.matchups || 0;
 
