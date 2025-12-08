@@ -27,8 +27,10 @@
         <p><strong>Previous Rankings CSV:</strong></p>
         <input type="file" id="rankings-file" accept=".csv">
         <br><br>
-        <button type="submit">Upload &/or Merge</button>
+        <button type="submit" id="upload-btn">Upload &/or Merge</button>
     </form>
+
+    <div id="status-message" style="margin-top: 15px; font-weight: bold; color: #333; min-height: 24px;"></div>
 
     <div style="text-align: center; margin-top: 20px;">
         <button id="clear-storage" style="background-color: #ff4444; color: white; padding: 8px 16px;">
@@ -59,11 +61,19 @@
 
             const goodreadsFile = document.getElementById('goodreads-file').files[0];
             const rankingsFile = document.getElementById('rankings-file').files[0];
+            const statusDiv = document.getElementById('status-message');
+            const uploadBtn = document.querySelector('button[type="submit"]');
 
             if (!goodreadsFile && !rankingsFile) {
                 alert("Please select at least one file to upload.");
                 return;
             }
+
+            // UI Feedback
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = "Processing...";
+            statusDiv.textContent = "Starting upload...";
+            statusDiv.style.color = "#333";
 
             // Get existing books from localStorage
             let loadedBooks = JSON.parse(localStorage.getItem('books')) || [];
@@ -74,20 +84,34 @@
                 // 2. Then process Goodreads to update active status based on current want-to-read list
 
                 if (rankingsFile) {
+                    statusDiv.textContent = "Processing Rankings CSV...";
                     console.log('Processing Rankings CSV...');
                     loadedBooks = await parseRankingsCSV(rankingsFile, loadedBooks);
                 }
 
                 if (goodreadsFile) {
+                    statusDiv.textContent = "Processing Goodreads CSV (this may take a moment to fetch covers)...";
                     console.log('Processing Goodreads CSV...');
                     // This will merge with rankings data and set active status based on Goodreads
-                    loadedBooks = await parseGoodreadsCSV(goodreadsFile, loadedBooks);
+                    // Pass statusDiv to update progress
+                    loadedBooks = await parseGoodreadsCSV(goodreadsFile, loadedBooks, (msg) => {
+                        statusDiv.textContent = msg;
+                    });
                 }
 
                 // Save final merged books to localStorage
                 localStorage.setItem('books', JSON.stringify(loadedBooks));
-                window.location.href = 'ranking.html';
+                statusDiv.textContent = "Upload complete! Redirecting...";
+                statusDiv.style.color = "green";
+                setTimeout(() => {
+                    window.location.href = 'ranking.html';
+                }, 1000);
             } catch (error) {
+                console.error(error);
+                statusDiv.textContent = "Error: " + error.message;
+                statusDiv.style.color = "red";
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = "Upload &/or Merge";
                 alert("Error processing files: " + error.message);
             }
         });

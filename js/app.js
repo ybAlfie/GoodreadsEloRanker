@@ -69,15 +69,72 @@ function createBookKey(book) {
     return `${title}|${author}`;
 }
 
+// Helper to fetch cover from Google Books API
+async function fetchCoverFromGoogleBooks(title, author, isbn) {
+    // Strategy:
+    // 1. If ISBN exists, try searching by ISBN.
+    // 2. If that fails (or no ISBN), search by Title + Author.
+
+    const queries = [];
+    if (isbn) {
+        queries.push(`isbn:${isbn}`);
+    }
+    if (title) {
+        // Clean title for better search (remove series info in parenthesis)
+        const cleanTitle = title.replace(/\s*\(.*?\)\s*/g, '').trim();
+        queries.push(`intitle:${encodeURIComponent(cleanTitle)}${author ? `+inauthor:${encodeURIComponent(author)}` : ''}`);
+    }
+
+    for (const query of queries) {
+        try {
+            // Add a timeout to prevent hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+            const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) continue;
+
+            const data = await response.json();
+            if (data.items && data.items.length > 0) {
+                const volumeInfo = data.items[0].volumeInfo;
+                if (volumeInfo.imageLinks) {
+                    // Prefer thumbnail, fallback to smallThumbnail
+                    // Google Books URLs often are http, upgrade to https
+                    let url = volumeInfo.imageLinks.thumbnail || volumeInfo.imageLinks.smallThumbnail;
+                    if (url) {
+                        if (url.startsWith('http://')) {
+                            url = url.replace('http://', 'https://');
+                        }
+                        // Google Books covers often have &edge=curl which adds a page curl effect. Remove it for a flat look.
+                        url = url.replace('&edge=curl', '');
+                        return url;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn(`Failed to fetch cover from Google Books for query ${query}:`, e);
+        }
+    }
+
+    return null;
+}
+
 // Parse Goodreads CSV
-async function parseGoodreadsCSV(file, existingBooks) {
+async function parseGoodreadsCSV(file, existingBooks, progressCallback) {
     return new Promise((resolve, reject) => {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            complete: function (results) {
+            complete: async function (results) {
                 try {
                     console.log('Parsing Goodreads CSV with', results.data.length, 'rows');
+                    if (results.errors && results.errors.length > 0) {
+                        console.warn('CSV Parsing Errors:', results.errors);
+                    }
 
                     // Create maps using our book key function
                     const existingBooksMap = new Map();
@@ -110,8 +167,6 @@ async function parseGoodreadsCSV(file, existingBooks) {
                     }
 
                     // Identify books that are already read or currently reading
-                    // This prevents duplicates if a book exists in 'to-read' but also in 'read'/'currently-reading'
-                    // (e.g. different editions or ghost entries)
                     const booksInOtherShelves = new Set();
                     const activeShelves = new Set(['read', 'currently-reading']);
 
@@ -125,54 +180,63 @@ async function parseGoodreadsCSV(file, existingBooks) {
                         }
                     });
 
-                    const wantToReadBooks = results.data
-                        .filter(row => {
-                            if (row["Exclusive Shelf"] !== "to-read") return false;
+                    const wantToReadBooks = [];
+                    let processedCount = 0;
 
-                            // Check if this book (by title/author) is already in read/currently-reading
-                            const title = (row["Title"] || '').toLowerCase().trim();
-                            const author = (row["Author"] || '').toLowerCase().trim();
-                            const key = `${title}|${author}`;
+                    // Filter first to know total count for progress
+                    const rowsToProcess = results.data.filter(row => row["Exclusive Shelf"] === "to-read");
+                    const totalToProcess = rowsToProcess.length;
 
-                            if (booksInOtherShelves.has(key)) {
-                                console.log(`Skipping "${row["Title"]}" because it is also in read/currently-reading`);
-                                return false;
-                            }
-                            return true;
-                        })
-                        .map(row => {
-                            const key = createBookKey(row);
-                            const existingBook = existingBooksMap.get(key);
-                            const isbn = cleanISBN(row["ISBN13"]) || cleanISBN(row["ISBN"]);
-                            const numPages = getNumPages(row);
+                    if (progressCallback) progressCallback(`Found ${totalToProcess} books to process...`);
 
-                            console.log(`Processing: "${row["Title"]}" by ${row["Author"]}, Pages: ${numPages}, Key: ${key}, Found existing: ${!!existingBook}`);
+                    // Process rows quickly without waiting for covers
+                    for (let i = 0; i < rowsToProcess.length; i++) {
+                        const row = rowsToProcess[i];
 
-                            if (existingBook) {
-                                return {
-                                    ...existingBook,
-                                    title: row["Title"] || existingBook.title,
-                                    author: row["Author"] || existingBook.author,
-                                    isbn: isbn || existingBook.isbn,
-                                    cover_url: existingBook.cover_url ||
-                                        (isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : null),
-                                    num_pages: numPages !== null ? numPages : (existingBook.num_pages || null),
-                                    additional_authors: row["Additional Authors"] || existingBook.additional_authors,
-                                    average_rating: row["Average Rating"] || existingBook.average_rating,
-                                    publisher: row["Publisher"] || existingBook.publisher,
-                                    year_published: row["Year Published"] || existingBook.year_published,
-                                    original_publication_year: row["Original Publication Year"] || existingBook.original_publication_year,
-                                    date_added: row["Date Added"] || existingBook.date_added,
-                                    active: 1
-                                };
-                            }
+                        // Check if this book (by title/author) is already in read/currently-reading
+                        const title = (row["Title"] || '').toLowerCase().trim();
+                        const author = (row["Author"] || '').toLowerCase().trim();
+                        const key = `${title}|${author}`;
 
-                            return {
+                        if (booksInOtherShelves.has(key)) {
+                            console.log(`Skipping "${row["Title"]}" because it is also in read/currently-reading`);
+                            continue;
+                        }
+
+                        const bookKey = createBookKey(row);
+                        const existingBook = existingBooksMap.get(bookKey);
+                        const isbn = cleanISBN(row["ISBN13"]) || cleanISBN(row["ISBN"]);
+                        const numPages = getNumPages(row);
+
+                        if (existingBook) {
+                            wantToReadBooks.push({
+                                ...existingBook,
+                                title: row["Title"] || existingBook.title,
+                                author: row["Author"] || existingBook.author,
+                                isbn: isbn || existingBook.isbn,
+                                // Keep existing cover, or set OpenLibrary fallback if none exists and we have ISBN
+                                cover_url: existingBook.cover_url ||
+                                    (isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : null),
+                                num_pages: numPages !== null ? numPages : (existingBook.num_pages || null),
+                                additional_authors: row["Additional Authors"] || existingBook.additional_authors,
+                                average_rating: row["Average Rating"] || existingBook.average_rating,
+                                publisher: row["Publisher"] || existingBook.publisher,
+                                year_published: row["Year Published"] || existingBook.year_published,
+                                original_publication_year: row["Original Publication Year"] || existingBook.original_publication_year,
+                                date_added: row["Date Added"] || existingBook.date_added,
+                                active: 1
+                            });
+                        } else {
+                            // New book - Set OpenLibrary as placeholder if ISBN exists, else null
+                            // We will fetch better covers in the background
+                            let coverUrl = isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : null;
+
+                            wantToReadBooks.push({
                                 id: generateUniqueId(),
                                 isbn: isbn,
                                 title: row["Title"] || "Unknown Title",
                                 author: row["Author"] || "Unknown Author",
-                                cover_url: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : null,
+                                cover_url: coverUrl,
                                 num_pages: numPages,
                                 additional_authors: row["Additional Authors"] || '',
                                 average_rating: row["Average Rating"] || '',
@@ -183,8 +247,9 @@ async function parseGoodreadsCSV(file, existingBooks) {
                                 elo: 1500,
                                 matchups: 0,
                                 active: 1
-                            };
-                        });
+                            });
+                        }
+                    }
 
                     console.log('Found', wantToReadBooks.length, 'want to read books');
 
@@ -222,6 +287,71 @@ async function parseGoodreadsCSV(file, existingBooks) {
     });
 }
 
+// Background Cover Fetcher
+let isFetchingCover = false;
+
+async function fetchMissingCoverForBook(book) {
+    if (!book || isFetchingCover) return false;
+
+    // Only fetch if no cover or if it's an OpenLibrary cover (optional, but user wants Google Books priority)
+    // For now, let's prioritize books with NO cover (null)
+    if (book.cover_url && !book.cover_url.includes('covers.openlibrary.org')) return false;
+
+    // If it has an OpenLibrary cover, we might want to keep it unless we are sure we can get a better one.
+    // But the user specifically complained about missing covers for non-ISBN books.
+    // Those will have cover_url = null. So let's focus on those first.
+    if (book.cover_url !== null && book.cover_url !== undefined && book.cover_url !== '') return false;
+
+    isFetchingCover = true;
+    console.log(`Background fetching cover for: ${book.title}`);
+
+    try {
+        const newCoverUrl = await fetchCoverFromGoogleBooks(book.title, book.author, book.isbn);
+
+        if (newCoverUrl) {
+            // Update book in memory and localStorage
+            const bookIndex = books.findIndex(b => b.id === book.id);
+            if (bookIndex !== -1) {
+                books[bookIndex].cover_url = newCoverUrl;
+                saveBooks();
+                console.log(`Updated cover for ${book.title}`);
+
+                // Dispatch event so UI can update if needed
+                window.dispatchEvent(new CustomEvent('bookCoverUpdated', {
+                    detail: { bookId: book.id, coverUrl: newCoverUrl }
+                }));
+                return true;
+            }
+        }
+    } catch (e) {
+        console.warn(`Error background fetching for ${book.title}:`, e);
+    } finally {
+        isFetchingCover = false;
+    }
+    return false;
+}
+
+function startBackgroundCoverFetcher() {
+    // Run every 2 seconds
+    setInterval(async () => {
+        if (isFetchingCover) return;
+
+        // Find a random active book that needs a cover
+        // Prioritize active books
+        const activeBooks = books.filter(b => b.active === 1);
+        const booksNeedingCover = activeBooks.filter(b => !b.cover_url);
+
+        if (booksNeedingCover.length > 0) {
+            const randomBook = booksNeedingCover[Math.floor(Math.random() * booksNeedingCover.length)];
+            await fetchMissingCoverForBook(randomBook);
+        }
+    }, 2000);
+}
+
+// Start the background fetcher when app.js loads
+// (It will run on any page that includes app.js)
+startBackgroundCoverFetcher();
+
 // Parse Rankings CSV
 async function parseRankingsCSV(file, existingBooks) {
     return new Promise((resolve, reject) => {
@@ -240,8 +370,6 @@ async function parseRankingsCSV(file, existingBooks) {
                     });
 
                     const rankedBooks = results.data
-                        // Remove filter - we want ALL books, not just ones with ISBN
-                        //.filter(row => row.ISBN)  // <-- This was the problem!
                         .map(row => {
                             const key = createBookKey(row);
                             const existingBook = existingBooksMap.get(key);
@@ -387,4 +515,10 @@ function getNextMatchupData(options = {}) {
 
     saveBooks();
     return { book1, book2 };
+}
+
+// Helper to ensure covers are fetched for the current matchup
+async function ensureMatchupCovers(book1, book2) {
+    if (book1) await fetchMissingCoverForBook(book1);
+    if (book2) await fetchMissingCoverForBook(book2);
 }

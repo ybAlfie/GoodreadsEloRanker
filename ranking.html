@@ -264,6 +264,11 @@
             }
             currentMatchup = matchup;
 
+            // Trigger cover fetch for these books if needed
+            if (window.ensureMatchupCovers) {
+                ensureMatchupCovers(matchup.book1, matchup.book2);
+            }
+
             // Clear existing images and set loading state
             const book1Img = document.getElementById('book1_img');
             const book2Img = document.getElementById('book2_img');
@@ -392,6 +397,23 @@
                     chooseWinner(book2.id, book1.id);
                 } else if (e.key === 'ArrowDown') {
                     getNextMatchup();
+                }
+            });
+
+            // Listen for cover updates
+            window.addEventListener('bookCoverUpdated', (e) => {
+                const { bookId, coverUrl } = e.detail;
+                if (currentMatchup) {
+                    if (currentMatchup.book1 && currentMatchup.book1.id === bookId) {
+                        const img = document.getElementById('book1_img');
+                        if (img) img.src = coverUrl;
+                        currentMatchup.book1.cover_url = coverUrl;
+                    }
+                    if (currentMatchup.book2 && currentMatchup.book2.id === bookId) {
+                        const img = document.getElementById('book2_img');
+                        if (img) img.src = coverUrl;
+                        currentMatchup.book2.cover_url = coverUrl;
+                    }
                 }
             });
         });
