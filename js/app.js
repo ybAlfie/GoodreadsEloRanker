@@ -59,7 +59,8 @@ function cleanISBN(isbn) {
 // Helper function to create a unique key for a book
 function createBookKey(book) {
     // Create a key using ISBN or title+author if ISBN is missing
-    const isbn = cleanISBN(book.isbn || book.ISBN13 || book.ISBN);
+    // Fix: Try each field individually to ensure we get a valid ISBN if one exists
+    const isbn = cleanISBN(book.isbn) || cleanISBN(book.ISBN13) || cleanISBN(book.ISBN);
     if (isbn) return isbn;
 
     // Fallback to title+author combination
@@ -108,8 +109,37 @@ async function parseGoodreadsCSV(file, existingBooks) {
                         return null;
                     }
 
+                    // Identify books that are already read or currently reading
+                    // This prevents duplicates if a book exists in 'to-read' but also in 'read'/'currently-reading'
+                    // (e.g. different editions or ghost entries)
+                    const booksInOtherShelves = new Set();
+                    const activeShelves = new Set(['read', 'currently-reading']);
+
+                    results.data.forEach(row => {
+                        if (activeShelves.has(row["Exclusive Shelf"])) {
+                            const title = (row["Title"] || '').toLowerCase().trim();
+                            const author = (row["Author"] || '').toLowerCase().trim();
+                            if (title && author) {
+                                booksInOtherShelves.add(`${title}|${author}`);
+                            }
+                        }
+                    });
+
                     const wantToReadBooks = results.data
-                        .filter(row => row["Exclusive Shelf"] === "to-read")
+                        .filter(row => {
+                            if (row["Exclusive Shelf"] !== "to-read") return false;
+
+                            // Check if this book (by title/author) is already in read/currently-reading
+                            const title = (row["Title"] || '').toLowerCase().trim();
+                            const author = (row["Author"] || '').toLowerCase().trim();
+                            const key = `${title}|${author}`;
+
+                            if (booksInOtherShelves.has(key)) {
+                                console.log(`Skipping "${row["Title"]}" because it is also in read/currently-reading`);
+                                return false;
+                            }
+                            return true;
+                        })
                         .map(row => {
                             const key = createBookKey(row);
                             const existingBook = existingBooksMap.get(key);
