@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELO Ranking</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/ranking-controls.css">
@@ -433,7 +434,7 @@
         <h3 style="text-align:center; color:#664b33"><i>Which book would you prefer to read?</i></h3>
         <div class="matchup-container">
             <div id="book1_container" class="book-container"
-                onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">
+                onclick="if(currentMatchup) chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">
                 <div class="info-button" onclick="event.stopPropagation(); toggleInfo(1)" onmouseenter="showInfo(1)"
                     onmouseleave="hideInfo(1)">i</div>
                 <div id="book1_info" class="info-popup" onclick="event.stopPropagation()" onmouseenter="showInfo(1)"
@@ -454,7 +455,7 @@
 
 
             <div id="book2_container" class="book-container"
-                onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">
+                onclick="if(currentMatchup) chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">
                 <div class="info-button" onclick="event.stopPropagation(); toggleInfo(2)" onmouseenter="showInfo(2)"
                     onmouseleave="hideInfo(2)">i</div>
                 <div id="book2_info" class="info-popup" onclick="event.stopPropagation()" onmouseenter="showInfo(2)"
@@ -474,10 +475,12 @@
         </div>
 
         <div class="controls-container">
-            <button class="btn-win" onclick="chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">&larr; Left
+            <button class="btn-win"
+                onclick="if(currentMatchup) chooseWinner(currentMatchup.book1.id, currentMatchup.book2.id)">&larr; Left
                 Wins</button>
             <button class="btn-skip" onclick="getNextMatchup()">&darr; Skip</button>
-            <button class="btn-win" onclick="chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">Right Wins
+            <button class="btn-win"
+                onclick="if(currentMatchup) chooseWinner(currentMatchup.book2.id, currentMatchup.book1.id)">Right Wins
                 &rarr;</button>
         </div>
         <div class="keyboard-hint">

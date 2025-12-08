@@ -25,8 +25,7 @@ async function parseGoodreadsCSV(file, existingBooks, progressCallback) {
                             "Number Of Pages",
                             "Number of pages",
                             "Pages",
-                            "Num Pages",
-                            "Number Of Pages"
+                            "Num Pages"
                         ];
 
                         for (const col of possibleColumns) {
@@ -56,7 +55,6 @@ async function parseGoodreadsCSV(file, existingBooks, progressCallback) {
                     });
 
                     const wantToReadBooks = [];
-                    let processedCount = 0;
 
                     // Filter first to know total count for progress
                     const rowsToProcess = results.data.filter(row => row["Exclusive Shelf"] === "to-read");
@@ -243,7 +241,10 @@ function startBackgroundCoverFetcher() {
         // Find a random active book that needs a cover
         // Prioritize active books
         const activeBooks = books.filter(b => b.active === 1);
-        const booksNeedingCover = activeBooks.filter(b => !b.cover_url);
+        // Include books with no cover OR books with OpenLibrary covers (which might be broken 1x1 placeholders)
+        const booksNeedingCover = activeBooks.filter(b =>
+            !b.cover_url || (b.cover_url && b.cover_url.includes('covers.openlibrary.org'))
+        );
 
         if (booksNeedingCover.length > 0) {
             const randomBook = booksNeedingCover[Math.floor(Math.random() * booksNeedingCover.length)];
@@ -341,7 +342,7 @@ function createBookKey(book) {
 
 // Helper to generate unique ID
 function generateUniqueId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
 // Update book ELO
@@ -419,7 +420,6 @@ function getNextMatchupData(options = {}) {
 
     const book2 = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
 
-    saveBooks();
     return { book1, book2 };
 }
 

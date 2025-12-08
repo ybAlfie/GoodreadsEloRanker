@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About This Website</title>
     <link rel="stylesheet" href="css/styles.css">
     <style>
@@ -10,7 +12,8 @@
             line-height: 1.6;
         }
 
-        h1, h2 {
+        h1,
+        h2 {
             text-align: center;
         }
 
@@ -22,9 +25,9 @@
             list-style-type: disc;
             margin-left: 40px;
         }
-
     </style>
 </head>
+
 <body>
     <nav style="text-align:center;">
         <a href="index.html">Upload</a> |
@@ -38,64 +41,79 @@
     <section>
         <h2>Description</h2>
         <p>
-            This website helps you find which books from your "Want to Read" list you'd like to read next. 
-            Using a series of one-on-one matchups, you compare two books at a time, choosing the one you’d rather read. 
-            The website uses an ELO rating system (similar to Chess) to rank all your books, helping you decide what to read without having to compare each book individually.
+            This website helps you find which books from your "Want to Read" list you'd like to read next.
+            Using a series of one-on-one matchups, you compare two books at a time, choosing the one you’d rather read.
+            The website uses an ELO rating system (similar to Chess) to rank all your books, helping you decide what to
+            read without having to compare each book individually.
         </p>
     </section>
 
     <section>
         <h2>How to Use the Website</h2>
         <ol>
-            <li><strong>Start at the Upload Page:</strong> On the <a href="index.html">Upload</a> page, 
-                you can upload your Goodreads Library Export CSV (or a previous rankings CSV if you have one). 
+            <li><strong>Start at the Upload Page:</strong> On the <a href="index.html">Upload</a> page,
+                you can upload your Goodreads Library Export CSV (or a previous rankings CSV if you have one).
                 This will import your "Want to Read" list.
                 <ul>
-                    <li><a href="https://www.goodreads.com/review/import">Click here</a> to export your library from Goodreads or go to "My Books", then click on "Import and export" under Tools.</li>
+                    <li><a href="https://www.goodreads.com/review/import">Click here</a> to export your library from
+                        Goodreads or go to "My Books", then click on "Import and export" under Tools.</li>
                 </ul>
             </li>
-            <li><strong>Go to the Ranking Page:</strong> After uploading, go to the <a href="ranking.html">Rank Books</a> page. 
-                Here, you’ll be presented with two books at a time. Choose which one you'd prefer to read by clicking the book or 
+            <li><strong>Go to the Ranking Page:</strong> After uploading, go to the <a href="ranking.html">Rank
+                    Books</a> page.
+                Here, you’ll be presented with two books at a time. Choose which one you'd prefer to read by clicking
+                the book or
                 pressing the corresponding arrow key.</li>
-            <li><strong>Keep Ranking:</strong> The system will continue to present matchups. Each choice updates the ELO ratings 
+            <li><strong>Keep Ranking:</strong> The system will continue to present matchups. Each choice updates the ELO
+                ratings
                 for the books, refining the rankings with each decision.</li>
-            <li><strong>View the Leaderboard:</strong> When you’ve made enough comparisons, visit the <a href="leaderboard.html">Leaderboard</a> 
+            <li><strong>View the Leaderboard:</strong> When you’ve made enough comparisons, visit the <a
+                    href="leaderboard.html">Leaderboard</a>
                 to see how your books stack up. You can also export your current rankings for future sessions.</li>
-                <li><strong>Merge Updated Files:</strong> If you’ve made changes to your Goodreads "Want to Read" list since your last session you can 
-                    upload both the new Goodreads Library Export and your old rankings CSV together on the Upload page. 
-                    The system will automatically update by adding new books, removing titles no longer in your want to read list, and preserving your previous ELO rankings.</li>
+            <li><strong>Merge Updated Files:</strong> If you’ve made changes to your Goodreads "Want to Read" list since
+                your last session you can
+                upload both the new Goodreads Library Export and your old rankings CSV together on the Upload page.
+                The system will automatically update by adding new books, removing titles no longer in your want to read
+                list, and preserving your previous ELO rankings.</li>
         </ol>
     </section>
 
     <section>
         <h2>FAQ</h2>
         <p>
-            <section id="faq-storage-privacy">
-                <h3>Data Storage and Privacy:</h3>
-                <p>
-                    Data is saved locally in your browser’s LocalStorage. This means:
-                </p>
-                <ul>
-                    <li><strong>Local-Only Storage:</strong><br>
-                        No external servers are involved. All the rankings and book data you generate stay on your own device, inside your browser’s storage. 
-                        When you revisit the site using the same browser and the same device, your previously ranked books and ELO scores should still be 
-                        available without needing to re-upload your files.
-                    </li>
-                    <li><strong>Privacy:</strong><br>
-                        Because no data is sent online, privacy is maintained. Others cannot access your rankings unless they use your device and browser.
-                    </li>
-                    <li><strong>Portability and Backup:</strong><br>
-                        If you want to take your rankings to another device or browser, you can export them as a CSV file. Without exporting, the data remains 
-                        tied to the specific browser and device you’re using.
-                    </li>
-                    <li><strong>Data Loss Considerations:</strong><br>
-                        LocalStorage can be cleared if you reset your browser’s data or run the site in a private/incognito window. Additionally, browser updates 
-                        or certain privacy settings may occasionally wipe stored data. To avoid losing progress, make sure to periodically export your rankings 
-                        as a CSV file.
-                    </li>
-                </ul>
-            </section>
+        <section id="faq-storage-privacy">
+            <h3>Data Storage and Privacy:</h3>
+            <p>
+                Data is saved locally in your browser’s LocalStorage. This means:
+            </p>
+            <ul>
+                <li><strong>Local-Only Storage:</strong><br>
+                    No external servers are involved. All the rankings and book data you generate stay on your own
+                    device, inside your browser’s storage.
+                    When you revisit the site using the same browser and the same device, your previously ranked books
+                    and ELO scores should still be
+                    available without needing to re-upload your files.
+                </li>
+                <li><strong>Privacy:</strong><br>
+                    Because no data is sent online, privacy is maintained. Others cannot access your rankings unless
+                    they use your device and browser.
+                </li>
+                <li><strong>Portability and Backup:</strong><br>
+                    If you want to take your rankings to another device or browser, you can export them as a CSV file.
+                    Without exporting, the data remains
+                    tied to the specific browser and device you’re using.
+                </li>
+                <li><strong>Data Loss Considerations:</strong><br>
+                    LocalStorage can be cleared if you reset your browser’s data or run the site in a private/incognito
+                    window. Additionally, browser updates
+                    or certain privacy settings may occasionally wipe stored data. To avoid losing progress, make sure
+                    to periodically export your rankings
+                    as a CSV file.
+                </li>
+            </ul>
+        </section>
         </p>
     </section>
 </body>
+
 </html>
