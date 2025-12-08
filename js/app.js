@@ -477,6 +477,9 @@ async function fetchCoverFromGoogleBooks(title, author, isbn) {
                         }
                         // Google Books covers often have &edge=curl which adds a page curl effect. Remove it for a flat look.
                         url = url.replace('&edge=curl', '');
+                        // Increase image quality by changing zoom parameter
+                        // zoom=1 is ~128px (default), zoom=3 is ~400px, zoom=4 is ~600px
+                        url = url.replace('zoom=1', 'zoom=3');
                         return url;
                     }
                 }
