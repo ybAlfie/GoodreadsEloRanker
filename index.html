@@ -80,23 +80,25 @@
 
             try {
                 // Process files in the correct order:
-                // 1. If rankings file exists, load it first to get ELO/matchup data
-                // 2. Then process Goodreads to update active status based on current want-to-read list
+                // 1. Process Goodreads FIRST to build the book list
+                // 2. THEN apply rankings data on top of the existing books
+                // This ensures that when both files are uploaded simultaneously,
+                // the rankings can match against the books from the Goodreads file.
+
+                if (goodreadsFile) {
+                    statusDiv.textContent = "Processing Goodreads CSV...";
+                    console.log('Processing Goodreads CSV...');
+                    // This will merge with any existing books and set active status
+                    loadedBooks = await parseGoodreadsCSV(goodreadsFile, loadedBooks, (msg) => {
+                        statusDiv.textContent = msg;
+                    });
+                }
 
                 if (rankingsFile) {
                     statusDiv.textContent = "Processing Rankings CSV...";
                     console.log('Processing Rankings CSV...');
+                    // Now apply rankings data to the books we just loaded/merged
                     loadedBooks = await parseRankingsCSV(rankingsFile, loadedBooks);
-                }
-
-                if (goodreadsFile) {
-                    statusDiv.textContent = "Processing Goodreads CSV (this may take a moment to fetch covers)...";
-                    console.log('Processing Goodreads CSV...');
-                    // This will merge with rankings data and set active status based on Goodreads
-                    // Pass statusDiv to update progress
-                    loadedBooks = await parseGoodreadsCSV(goodreadsFile, loadedBooks, (msg) => {
-                        statusDiv.textContent = msg;
-                    });
                 }
 
                 // Save final merged books to localStorage

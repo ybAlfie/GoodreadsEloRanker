@@ -71,6 +71,8 @@
             margin-bottom: 15px;
         }
     </style>
+    <!-- PapaParse for CSV generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="js/app.js" defer></script>
     <script>
         let infoTimers = {};
@@ -235,32 +237,39 @@
             });
         }
 
-        function generateCSV() {
-            // Use the generateCSV function from app.js
-            if (typeof window.generateCSV === 'function') {
-                return window.generateCSV();
-            }
-            // Fallback if app.js hasn't loaded yet
+        function generateCSVForDownload() {
+            // Get books from localStorage and use PapaParse-based generateCSV from app.js
             const books = JSON.parse(localStorage.getItem('books')) || [];
-            const headers = ["ISBN", "Title", "Author", "ELO", "Matchups", "Active", "ID", "Cover_URL", "Number of Pages"];
+
+            // Use the generateCSV function from app.js if available
+            if (typeof window.generateCSV === 'function') {
+                return window.generateCSV(books);
+            }
+
+            // Fallback if app.js hasn't loaded yet (manual CSV generation)
+            const headers = ["Title", "Author", "ISBN", "ISBN13", "ELO", "Matchups", "Number of Pages", "Additional Authors", "Average Rating", "Publisher", "Year Published", "Original Publication Year", "Date Added"];
             const rows = books.map(b => [
+                b.title ? `"${b.title.replace(/"/g, '""')}"` : '',
+                b.author ? `"${b.author.replace(/"/g, '""')}"` : '',
                 b.isbn || '',
-                b.title ? b.title.replace(/,/g, "") : '',
-                b.author ? b.author.replace(/,/g, "") : '',
-                Math.round(b.elo),
+                b.isbn || '',
+                Math.round(b.elo || 1500),
                 b.matchups || 0,
-                b.active || 0,
-                b.id || '',
-                b.cover_url || '',
-                b.num_pages || ''
+                b.num_pages || '',
+                b.additional_authors ? `"${b.additional_authors.replace(/"/g, '""')}"` : '',
+                b.average_rating || '',
+                b.publisher ? `"${b.publisher.replace(/"/g, '""')}"` : '',
+                b.year_published || '',
+                b.original_publication_year || '',
+                b.date_added || ''
             ]);
-            const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+            const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join("\n");
             return csvContent;
         }
 
         function downloadCSV() {
             try {
-                const csv = generateCSV();
+                const csv = generateCSVForDownload();
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
