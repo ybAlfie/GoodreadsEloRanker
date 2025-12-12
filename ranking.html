@@ -311,13 +311,17 @@
             if (book1Info) book1Info.innerHTML = generateInfoContent(matchup.book1);
             if (book2Info) book2Info.innerHTML = generateInfoContent(matchup.book2);
 
-            // Load new images
+            // Load new images - verify they're not broken 1x1 placeholders
             if (matchup.book1.cover_url) {
                 const img1 = new Image();
                 img1.onload = function () {
+                    // OpenLibrary returns 1x1 for missing covers
                     if (this.naturalWidth > 1 && this.naturalHeight > 1) {
                         book1Img.src = matchup.book1.cover_url;
                     }
+                };
+                img1.onerror = function () {
+                    console.log(`Failed to load cover for ${matchup.book1.title}`);
                 };
                 img1.src = matchup.book1.cover_url;
             }
@@ -328,6 +332,9 @@
                     if (this.naturalWidth > 1 && this.naturalHeight > 1) {
                         book2Img.src = matchup.book2.cover_url;
                     }
+                };
+                img2.onerror = function () {
+                    console.log(`Failed to load cover for ${matchup.book2.title}`);
                 };
                 img2.src = matchup.book2.cover_url;
             }

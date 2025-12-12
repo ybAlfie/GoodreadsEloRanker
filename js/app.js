@@ -187,34 +187,39 @@ async function fetchMissingCoverForBook(book) {
 
     // Check if we should fetch a better cover
     // 1. If no cover (null/empty) -> Fetch
-    // 2. If OpenLibrary cover -> Check if it's broken (1x1). If broken -> Fetch. If good -> Keep.
-    // 3. If Google Books cover -> Skip (already good)
+    // 2. If OpenLibrary ISBN-based cover -> Check if it's broken. If broken -> Try search. If good -> Keep.
+    // 3. If OpenLibrary search-based cover (has /id/ in URL) -> Skip (already searched)
+    // 4. If marked as failed -> Skip (already tried and failed)
     const hasNoCover = !book.cover_url;
-    const hasOpenLibraryCover = book.cover_url && book.cover_url.includes('covers.openlibrary.org');
+    const hasIsbnCover = book.cover_url && book.cover_url.includes('/isbn/');
+    const hasSearchCover = book.cover_url && book.cover_url.includes('/id/');
+    const hasFailedBefore = book.cover_fetch_failed === true;
 
-    if (!hasNoCover && !hasOpenLibraryCover) return false;
+    // Skip if already has a search-based cover or marked as failed
+    if (hasSearchCover || hasFailedBefore) return false;
 
-    // If it's an OpenLibrary cover, verify it's actually missing (1x1 pixel)
-    if (hasOpenLibraryCover) {
+    // Skip if has a valid ISBN-based cover
+    if (hasIsbnCover) {
         const isBroken = await isImageBroken(book.cover_url);
         if (!isBroken) {
-            // It's a valid image, so we don't need to replace it
+            // It's a valid image, keep it
             return false;
         }
-        console.log(`OpenLibrary cover for "${book.title}" is missing/placeholder, fetching from Google...`);
+        console.log(`ISBN cover for "${book.title}" is missing/placeholder, searching OpenLibrary...`);
     }
 
     isFetchingCover = true;
     console.log(`Background fetching cover for: ${book.title}`);
 
     try {
-        const newCoverUrl = await fetchCoverFromGoogleBooks(book.title, book.author, book.isbn);
+        // Try OpenLibrary first, then Google Books as fallback
+        const newCoverUrl = await fetchBookCover(book.title, book.author, book.isbn);
 
-        if (newCoverUrl) {
-            // Update book in memory and localStorage
-            const bookIndex = books.findIndex(b => b.id === book.id);
-            if (bookIndex !== -1) {
+        const bookIndex = books.findIndex(b => b.id === book.id);
+        if (bookIndex !== -1) {
+            if (newCoverUrl) {
                 books[bookIndex].cover_url = newCoverUrl;
+                books[bookIndex].cover_fetch_failed = false;
                 saveBooks();
                 console.log(`Updated cover for ${book.title}`);
 
@@ -223,6 +228,17 @@ async function fetchMissingCoverForBook(book) {
                     detail: { bookId: book.id, coverUrl: newCoverUrl }
                 }));
                 return true;
+            } else {
+                // Mark as failed so we don't keep retrying
+                books[bookIndex].cover_fetch_failed = true;
+                books[bookIndex].cover_url = null; // Clear the broken cover URL
+                saveBooks();
+                console.log(`No valid cover found for "${book.title}", marked as failed`);
+
+                // Dispatch event so UI can show placeholder
+                window.dispatchEvent(new CustomEvent('bookCoverUpdated', {
+                    detail: { bookId: book.id, coverUrl: null, failed: true }
+                }));
             }
         }
     } catch (e) {
@@ -239,11 +255,13 @@ function startBackgroundCoverFetcher() {
         if (isFetchingCover) return;
 
         // Find a random active book that needs a cover
-        // Prioritize active books
         const activeBooks = books.filter(b => b.active === 1);
-        // Include books with no cover OR books with OpenLibrary covers (which might be broken 1x1 placeholders)
+        // Include books with no cover OR books with ISBN-based covers (which might be broken)
+        // Exclude books that have already been searched (have /id/ URL) or marked as failed
         const booksNeedingCover = activeBooks.filter(b =>
-            !b.cover_url || (b.cover_url && b.cover_url.includes('covers.openlibrary.org'))
+            !b.cover_fetch_failed &&
+            !b.cover_url?.includes('/id/') &&  // Already searched via OpenLibrary
+            (!b.cover_url || b.cover_url.includes('/isbn/'))  // No cover or ISBN cover that might be broken
         );
 
         if (booksNeedingCover.length > 0) {
@@ -429,71 +447,276 @@ async function ensureMatchupCovers(book1, book2) {
     if (book2) await fetchMissingCoverForBook(book2);
 }
 
-// Fetch cover from Google Books
-async function fetchCoverFromGoogleBooks(title, author, isbn) {
+// Fetch cover from OpenLibrary using their Search API
+// This finds books by title/author when ISBN lookup fails
+async function fetchCoverFromOpenLibrary(title, author, isbn) {
     // Strategy:
-    // 1. If ISBN exists, try searching by ISBN.
-    // 2. If that fails (or no ISBN), search by Title + Author.
+    // 1. If ISBN exists, try the direct ISBN cover URL first
+    // 2. If that fails (or no ISBN), use the Search API to find the book
+    // 3. Get the cover_i (cover ID) from search results
+    // 4. Construct cover URL from cover ID
 
-    const queries = [];
+    // Try ISBN first (most reliable)
     if (isbn) {
-        queries.push(`isbn:${isbn}`);
-    }
-    if (title) {
-        // Clean title for better search (remove series info in parenthesis)
-        const cleanTitle = title.replace(/\s*\(.*?\)\s*/g, '').trim();
-        queries.push(`intitle:${encodeURIComponent(cleanTitle)}${author ? `+inauthor:${encodeURIComponent(author)}` : ''}`);
-
-        // Fallback: Try title without subtitle (everything before colon)
-        if (cleanTitle.includes(':')) {
-            const shortTitle = cleanTitle.split(':')[0].trim();
-            queries.push(`intitle:${encodeURIComponent(shortTitle)}${author ? `+inauthor:${encodeURIComponent(author)}` : ''}`);
+        const isbnUrl = `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`;
+        const isBroken = await isImageBroken(isbnUrl);
+        if (!isBroken) {
+            console.log(`Found cover via ISBN for "${title}"`);
+            return isbnUrl;
         }
     }
 
-    for (const query of queries) {
-        try {
-            // Add a timeout to prevent hanging
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    // Clean title for search - remove series info in parentheses
+    const cleanTitle = title ? title.replace(/\s*\(.*?\)\s*/g, '').trim() : '';
+    if (!cleanTitle) return null;
 
-            const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`, {
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
+    // Try OpenLibrary Search API with title and author parameters
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-            if (!response.ok) continue;
+        // Use title and author parameters for better matching
+        let searchUrl = `https://openlibrary.org/search.json?title=${encodeURIComponent(cleanTitle)}`;
+        if (author) {
+            searchUrl += `&author=${encodeURIComponent(author)}`;
+        }
+        searchUrl += '&limit=10&fields=title,author_name,cover_i';
 
-            const data = await response.json();
-            if (data.items && data.items.length > 0) {
-                const volumeInfo = data.items[0].volumeInfo;
-                if (volumeInfo.imageLinks) {
-                    // Prefer thumbnail, fallback to smallThumbnail
-                    // Google Books URLs often are http, upgrade to https
-                    let url = volumeInfo.imageLinks.thumbnail || volumeInfo.imageLinks.smallThumbnail;
-                    if (url) {
-                        if (url.startsWith('http://')) {
-                            url = url.replace('http://', 'https://');
-                        }
-                        // Google Books covers often have &edge=curl which adds a page curl effect. Remove it for a flat look.
-                        url = url.replace('&edge=curl', '');
-                        // Increase image quality by changing zoom parameter
-                        // zoom=1 is ~128px (default), zoom=3 is ~400px, zoom=4 is ~600px
-                        url = url.replace('zoom=1', 'zoom=3');
-                        return url;
+        console.log(`Searching OpenLibrary: ${searchUrl}`);
+
+        const response = await fetch(searchUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            console.warn(`OpenLibrary search failed with status ${response.status}`);
+            return null;
+        }
+
+        const data = await response.json();
+        console.log(`OpenLibrary returned ${data.docs?.length || 0} results for "${cleanTitle}"`);
+
+        if (!data.docs || data.docs.length === 0) return null;
+
+        // Helper to normalize text for matching
+        const normalize = (t) => (t || '').toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        const expectedTitleNorm = normalize(cleanTitle);
+        const expectedAuthorNorm = normalize(author);
+        const expectedAuthorWords = expectedAuthorNorm.split(' ').filter(w => w.length > 2);
+
+        // Find first result that matches title AND author
+        for (const doc of data.docs) {
+            if (!doc.cover_i) continue;
+
+            const resultTitleNorm = normalize(doc.title);
+
+            // STRICT title check: require full containment
+            const titleMatches = resultTitleNorm.includes(expectedTitleNorm) ||
+                expectedTitleNorm.includes(resultTitleNorm) ||
+                resultTitleNorm === expectedTitleNorm;
+
+            if (!titleMatches) {
+                console.log(`Skipping OpenLibrary "${doc.title}" - title doesn't match "${cleanTitle}"`);
+                continue;
+            }
+
+            // Author check: at least one significant word must match
+            const resultAuthors = doc.author_name ? doc.author_name.join(' ') : '';
+            const resultAuthorNorm = normalize(resultAuthors);
+
+            let authorMatches = false;
+            if (!author || expectedAuthorWords.length === 0) {
+                // No author to check, accept based on title alone
+                authorMatches = true;
+            } else {
+                // Check if any author word appears
+                for (const word of expectedAuthorWords) {
+                    if (resultAuthorNorm.includes(word)) {
+                        authorMatches = true;
+                        break;
                     }
                 }
             }
-        } catch (e) {
-            console.warn(`Failed to fetch cover from Google Books for query ${query}:`, e);
+
+            if (!authorMatches) {
+                console.log(`Skipping OpenLibrary "${doc.title}" by ${resultAuthors} - author doesn't match "${author}"`);
+                continue;
+            }
+
+            const coverUrl = `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`;
+
+            // Verify the cover actually loads
+            const isBroken = await isImageBroken(coverUrl);
+            if (!isBroken) {
+                console.log(`Found cover for "${title}" -> "${doc.title}" by ${resultAuthors}`);
+                return coverUrl;
+            }
         }
+
+        console.log(`No matching result with valid cover found for "${title}" by ${author}`);
+        return null;
+    } catch (e) {
+        if (e.name === 'AbortError') {
+            console.warn(`OpenLibrary search timed out for "${title}"`);
+        } else {
+            console.warn(`Failed to fetch cover from OpenLibrary for "${title}":`, e);
+        }
+        return null;
     }
+}
+
+// Fallback: Fetch cover from Google Books API
+async function fetchCoverFromGoogleBooks(title, author) {
+    const cleanTitle = title ? title.replace(/\s*\(.*?\)\s*/g, '').trim() : '';
+    if (!cleanTitle) return null;
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+        // Build query with title and author
+        let query = `intitle:${encodeURIComponent(cleanTitle)}`;
+        if (author) {
+            query += `+inauthor:${encodeURIComponent(author)}`;
+        }
+
+        const response = await fetch(
+            `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=10`,
+            { signal: controller.signal }
+        );
+        clearTimeout(timeoutId);
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        if (!data.items || data.items.length === 0) return null;
+
+        // Helper to normalize text
+        const normalize = (t) => (t || '').toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        const expectedTitleNorm = normalize(cleanTitle);
+        const expectedAuthorNorm = normalize(author);
+        const expectedAuthorWords = expectedAuthorNorm.split(' ').filter(w => w.length > 2);
+
+        // Find first result with matching title+author and valid cover
+        for (const item of data.items) {
+            const volumeInfo = item.volumeInfo;
+            if (!volumeInfo.imageLinks) continue;
+
+            const resultTitleNorm = normalize(volumeInfo.title);
+
+            // STRICT title check: require full containment
+            const titleMatches = resultTitleNorm.includes(expectedTitleNorm) ||
+                expectedTitleNorm.includes(resultTitleNorm) ||
+                resultTitleNorm === expectedTitleNorm;
+
+            if (!titleMatches) {
+                console.log(`Skipping Google Books "${volumeInfo.title}" - title doesn't match "${cleanTitle}"`);
+                continue;
+            }
+
+            // Author check
+            const resultAuthors = volumeInfo.authors ? volumeInfo.authors.join(' ') : '';
+            const resultAuthorNorm = normalize(resultAuthors);
+
+            let authorMatches = false;
+            if (!author || expectedAuthorWords.length === 0) {
+                authorMatches = true;
+            } else {
+                for (const word of expectedAuthorWords) {
+                    if (resultAuthorNorm.includes(word)) {
+                        authorMatches = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!authorMatches) {
+                console.log(`Skipping Google Books "${volumeInfo.title}" by ${resultAuthors} - author doesn't match "${author}"`);
+                continue;
+            }
+
+            let url = volumeInfo.imageLinks.thumbnail || volumeInfo.imageLinks.smallThumbnail;
+            if (url) {
+                // Upgrade to https but keep the original zoom level
+                // Requesting higher zoom (zoom=3) for books that only have low-res images
+                // causes Google to return a placeholder instead
+                url = url.replace('http://', 'https://');
+                url = url.replace('&edge=curl', '');
+                // Don't modify zoom - use whatever quality exists
+
+                // Validate the image loads
+                const isValid = await isValidGoogleImage(url);
+                if (isValid) {
+                    console.log(`Found cover via Google Books for "${title}" -> "${volumeInfo.title}" by ${resultAuthors}`);
+                    return url;
+                } else {
+                    console.log(`Rejected Google Books cover for "${volumeInfo.title}" - failed to load`);
+                }
+            }
+        }
+
+        return null;
+    } catch (e) {
+        console.warn(`Failed to fetch cover from Google Books for "${title}":`, e);
+        return null;
+    }
+}
+
+// Validate a Google Books image loads correctly and is reasonably sized
+async function isValidGoogleImage(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = function () {
+            // Accept any image that's at least 40x40 pixels
+            // The title+author matching provides the quality control
+            if (this.naturalWidth >= 40 && this.naturalHeight >= 40) {
+                resolve(true);
+            } else {
+                console.log(`Rejecting small Google image: ${this.naturalWidth}x${this.naturalHeight}`);
+                resolve(false);
+            }
+        };
+        img.onerror = function () {
+            resolve(false);
+        };
+        img.src = url;
+    });
+}
+
+// Combined cover fetcher: tries OpenLibrary first, then Google Books
+async function fetchBookCover(title, author, isbn) {
+    // Try OpenLibrary first (preferred)
+    const openLibraryCover = await fetchCoverFromOpenLibrary(title, author, isbn);
+    if (openLibraryCover) return openLibraryCover;
+
+    // Fallback to Google Books
+    console.log(`OpenLibrary failed for "${title}", trying Google Books...`);
+    const googleCover = await fetchCoverFromGoogleBooks(title, author);
+    if (googleCover) return googleCover;
 
     return null;
 }
 
 // Initialize books array
 let books = JSON.parse(localStorage.getItem('books')) || [];
+
+// One-time migration: Reset for fixed zoom issue
+// Version 9: Fixed zoom=3 causing placeholders for low-res Google Books images
+const COVER_LOGIC_VERSION = 9; // Increment this to force a retry reset
+if (localStorage.getItem('coverLogicVersion') !== String(COVER_LOGIC_VERSION)) {
+    let resetCount = 0;
+    books.forEach(book => {
+        // Reset failed flags - covers that failed due to zoom issue can be retried
+        if (book.cover_fetch_failed) {
+            book.cover_fetch_failed = false;
+            resetCount++;
+        }
+    });
+    if (resetCount > 0) {
+        console.log(`Migration v9: Reset ${resetCount} books to retry with fixed zoom setting`);
+        localStorage.setItem('books', JSON.stringify(books));
+    }
+    localStorage.setItem('coverLogicVersion', String(COVER_LOGIC_VERSION));
+}
 
 function saveBooks() {
     localStorage.setItem('books', JSON.stringify(books));

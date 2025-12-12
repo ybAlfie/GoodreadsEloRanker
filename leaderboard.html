@@ -181,14 +181,35 @@
                 // Cover
                 const coverCell = document.createElement('td');
                 const img = document.createElement('img');
-                img.setAttribute('onerror', "this.src='images/placeholder.png';");
-                img.src = book.cover_url || 'images/placeholder.png';
-                img.alt = `${book.title} Cover`;
-                img.onload = function () {
-                    if (this.naturalWidth <= 1 && this.naturalHeight <= 1) {
-                        this.src = 'images/placeholder.png';
-                    }
-                };
+                img.id = `cover_${book.id}`;  // ID for dynamic updates
+
+                // Determine what to show:
+                // - If cover_fetch_failed: show placeholder
+                // - If has cover_url: show the cover (with validation)
+                // - If no cover_url and not failed: hide image (will be fetched)
+                if (book.cover_fetch_failed) {
+                    img.src = 'images/placeholder.png';
+                } else if (book.cover_url) {
+                    // Hide initially until validated
+                    img.style.display = 'none';
+                    // Validate the cover isn't a 1x1 placeholder
+                    const testImg = new Image();
+                    testImg.onload = function () {
+                        if (this.naturalWidth > 1 && this.naturalHeight > 1) {
+                            img.src = book.cover_url;
+                            img.style.display = '';  // Show the image
+                        }
+                        // Otherwise stays hidden - will be fetched by background fetcher
+                    };
+                    testImg.onerror = function () {
+                        // Stays hidden - will be fetched by background fetcher
+                    };
+                    testImg.src = book.cover_url;
+                } else {
+                    // No cover yet - hide the image element completely
+                    img.style.display = 'none';
+                }
+
                 coverCell.appendChild(img);
                 row.appendChild(coverCell);
 
@@ -237,6 +258,27 @@
                 tableBody.appendChild(row);
             });
         }
+
+        // Listen for cover updates from the background fetcher
+        window.addEventListener('bookCoverUpdated', function (e) {
+            const { bookId, coverUrl } = e.detail;
+            const img = document.getElementById(`cover_${bookId}`);
+            if (img && coverUrl) {
+                // Validate the new cover before showing it
+                const testImg = new Image();
+                testImg.onload = function () {
+                    if (this.naturalWidth > 1 && this.naturalHeight > 1) {
+                        img.src = coverUrl;
+                        img.style.display = '';  // Make visible
+                    }
+                };
+                testImg.src = coverUrl;
+            } else if (img && !coverUrl) {
+                // Book was marked as failed - show placeholder
+                img.src = 'images/placeholder.png';
+                img.style.display = '';  // Make visible
+            }
+        });
 
         function generateCSVForDownload() {
             // Get books from localStorage and use PapaParse-based generateCSV from app.js
