@@ -317,7 +317,10 @@
                 img1.onload = function () {
                     // OpenLibrary returns 1x1 for missing covers
                     if (this.naturalWidth > 1 && this.naturalHeight > 1) {
-                        book1Img.src = matchup.book1.cover_url;
+                        // Only update if this is still the current matchup
+                        if (currentMatchup && currentMatchup.book1.id === matchup.book1.id) {
+                            book1Img.src = matchup.book1.cover_url;
+                        }
                     }
                 };
                 img1.onerror = function () {
@@ -330,7 +333,10 @@
                 const img2 = new Image();
                 img2.onload = function () {
                     if (this.naturalWidth > 1 && this.naturalHeight > 1) {
-                        book2Img.src = matchup.book2.cover_url;
+                        // Only update if this is still the current matchup
+                        if (currentMatchup && currentMatchup.book2.id === matchup.book2.id) {
+                            book2Img.src = matchup.book2.cover_url;
+                        }
                     }
                 };
                 img2.onerror = function () {
